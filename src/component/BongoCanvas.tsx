@@ -421,23 +421,21 @@ export const BingoCanvas: React.FC<{
             titleHeight
         } = getCellDimensions();
 
-        let clickedCell = null;
-
-        cells.forEach(cell => {
+        // Find the clicked cell
+        for (const cell of cells) {
             const cellX = horizontalPadding + (cell.x * (cellWidth + cellPadding));
             const cellY = verticalPadding + titleHeight + (cell.y * (cellHeight + cellPadding));
 
             if (x >= cellX && x <= cellX + cellWidth &&
                 y >= cellY && y <= cellY + cellHeight) {
-                clickedCell = cell;
-                onCellClick(clickedCell.id);
-
+                // Only proceed if cell is not already revealed
+                if (!cell.isRevealed) {
+                    onCellClick(cell.id);
+                }
+                return; // Exit after finding the clicked cell
             }
-        });
-
-
+        }
     }, [cells, onCellClick, getCellDimensions]);
-
     return (
         <div ref={containerRef} className="bingo-canvas-container" style={{ width: '100%', height: '100%' }}>
             <h1 className="title">Pick A Box</h1>
