@@ -78,7 +78,7 @@ export const BongoMain: FC = () => {
                         value: index + 1,
                         x: index % 4,
                         y: Math.floor(index / 4),
-                        color: CELL_COLORS[index % CELL_COLORS.length],
+                        // color:/ CELL_COLORS[index % CELL_COLORS.length],
                         isRevealed: false
                     };
 

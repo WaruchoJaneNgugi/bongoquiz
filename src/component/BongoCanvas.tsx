@@ -15,7 +15,7 @@ export const BingoCanvas: React.FC<{
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
     const hoveredCellRef = useRef<number | null>(null);
-    const timeRef = useRef<number>(0);
+    // const timeRef = useRef<number>(0);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 700 });
 
     // Update canvas size based on container
@@ -430,12 +430,12 @@ export const BingoCanvas: React.FC<{
             if (x >= cellX && x <= cellX + cellWidth &&
                 y >= cellY && y <= cellY + cellHeight) {
                 clickedCell = cell;
+                onCellClick(clickedCell.id);
+
             }
         });
 
-        if (clickedCell && !clickedCell.isRevealed) {
-            onCellClick(clickedCell.id);
-        }
+
     }, [cells, onCellClick, getCellDimensions]);
 
     return (

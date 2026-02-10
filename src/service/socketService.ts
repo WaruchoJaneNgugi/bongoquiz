@@ -52,7 +52,7 @@ class SocketService {
             return 'http://192.168.1.100:3001'; // Example: laptop's IP
         } else {
             // Fallback - try to determine automatically
-            const port = window.location.port || '5173';
+            // const port = window.location.port || '5173';
             return `http://${hostname}:3001`;
         }
     }
