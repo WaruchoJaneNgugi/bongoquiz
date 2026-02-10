@@ -32,34 +32,17 @@ const getOrCreateRoom = (roomId) => {
         console.log(`🏠 Creating new room: ${roomId}`);
         rooms.set(roomId, {
             players: new Set(),
-            gameState: null,
             cells: Array(12).fill().map((_, index) => ({
                 id: index,
+                value: index + 1,
                 isRevealed: false,
-                value: index + 1
+                x: index % 4,
+                y: Math.floor(index / 4)
             }))
         });
     }
     return rooms.get(roomId);
 };
-// server.js - Add this inside io.on('connection')
-socket.on('request-game-state', ({ roomId }) => {
-    console.log(`📋 ${socket.id} requested game state for room ${roomId}`);
-
-    if (rooms.has(roomId)) {
-        const room = rooms.get(roomId);
-        if (room.gameState) {
-            socket.emit('game-state-response', room.gameState);
-        } else {
-            // Send initial state if no game exists
-            socket.emit('game-state-response', {
-                cells: room.cells,
-                gameStatus: 'idle',
-                revealedCount: 0
-            });
-        }
-    }
-});
 
 io.on('connection', (socket) => {
     console.log('👤 New client connected:', socket.id);
@@ -76,24 +59,19 @@ io.on('connection', (socket) => {
 
         console.log(`📊 Room ${roomId} now has ${room.players.size} players`);
 
-        // Send welcome message with current game state
-        socket.emit('welcome', {
-            message: `Welcome to room ${roomId}`,
-            playerCount: room.players.size,
-            gameState: room.gameState
+        // Send current game state to new player
+        console.log(`🔄 Sending game state to new player in room ${roomId}`);
+        socket.emit('game-state-update', {
+            cells: room.cells,
+            gameStatus: 'playing'
         });
 
         // Broadcast to other players in the room
         socket.to(roomId).emit('player-joined', {
             playerId: socket.id,
-            playerCount: room.players.size
+            playerCount: room.players.size,
+            cells: room.cells
         });
-
-        // Send current game state to new player
-        if (room.gameState) {
-            console.log(`🔄 Sending existing game state to new player in room ${roomId}`);
-            socket.emit('game-state-update', room.gameState);
-        }
     });
 
     // Handle cell click
@@ -108,41 +86,41 @@ io.on('connection', (socket) => {
         const room = rooms.get(roomId);
 
         // Update cell state in room
-        if (room.cells[cellId]) {
+        if (room.cells[cellId] && !room.cells[cellId].isRevealed) {
             room.cells[cellId].isRevealed = true;
 
-            // Calculate revealed count
-            const revealedCount = room.cells.filter(cell => cell.isRevealed).length;
-
-            // Create updated game state
-            room.gameState = {
-                cells: room.cells,
-                gameStatus: revealedCount >= 12 ? 'completed' : 'playing',
-                revealedCount: revealedCount
-            };
-
-            console.log(`🔄 Room ${roomId} updated: ${revealedCount} cells revealed`);
+            console.log(`✅ Cell ${cellId} marked as revealed in room ${roomId}`);
 
             // Broadcast to ALL clients in the room (including sender)
             io.to(roomId).emit('cell-revealed', cellId);
 
             // Also send full game state update
-            io.to(roomId).emit('game-state-update', room.gameState);
+            io.to(roomId).emit('game-state-update', {
+                cells: room.cells,
+                gameStatus: 'playing'
+            });
 
             console.log(`📡 Broadcasted cell ${cellId} reveal to room ${roomId}`);
         }
     });
 
-    // Handle game state update from client
-    socket.on('game-state-update', ({ roomId, cells, gameStatus, revealedCount }) => {
-        console.log(`📤 Client ${socket.id} updating game state for room ${roomId}`);
+    // Handle game state request
+    socket.on('request-game-state', ({ roomId }) => {
+        console.log(`📋 ${socket.id} requested game state for room ${roomId}`);
 
         if (rooms.has(roomId)) {
             const room = rooms.get(roomId);
-            room.gameState = { cells, gameStatus, revealedCount };
-
-            // Broadcast to other clients (excluding sender)
-            socket.to(roomId).emit('game-state-update', room.gameState);
+            socket.emit('game-state-update', {
+                cells: room.cells,
+                gameStatus: 'playing'
+            });
+        } else {
+            // Create a new room with default state
+            const room = getOrCreateRoom(roomId);
+            socket.emit('game-state-update', {
+                cells: room.cells,
+                gameStatus: 'playing'
+            });
         }
     });
 

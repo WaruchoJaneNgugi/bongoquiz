@@ -1,16 +1,17 @@
 // BongoCanvas.tsx - With Gradient Colors
 // BongoCanvas.tsx - With cells that fill the available height
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, {useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction} from 'react';
 import '../assets/style.css';
 import {type CellState, type GameStatus, PRIZE_IMAGES, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
 
 // Canvas Component
-export const BingoCanvas: React.FC<{
+export const BongoCanvas: React.FC<{
     cells: CellState[];
     gameStatus: GameStatus;
     onCellClick: (id: number) => void;
     selectedCell: number | null;
-}> = ({ cells, onCellClick }) => {
+    OnSetSelectedCell:Dispatch<SetStateAction<number|null>>
+}> = ({ cells, onCellClick,OnSetSelectedCell }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
@@ -431,11 +432,12 @@ export const BingoCanvas: React.FC<{
                 // Only proceed if cell is not already revealed
                 if (!cell.isRevealed) {
                     onCellClick(cell.id);
+                    OnSetSelectedCell(cell.id)
                 }
                 return; // Exit after finding the clicked cell
             }
         }
-    }, [cells, onCellClick, getCellDimensions]);
+    }, [getCellDimensions, cells, onCellClick, OnSetSelectedCell]);
     return (
         <div ref={containerRef} className="bingo-canvas-container" style={{ width: '100%', height: '100%' }}>
             <h1 className="title">Pick A Box</h1>

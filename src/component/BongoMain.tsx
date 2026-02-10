@@ -1,9 +1,9 @@
-// BongoMain.tsx - Simplified Version
+// BongoMain.tsx - Fixed Version
 import { type FC, useCallback, useEffect, useState, useRef } from "react";
 import { CELL_GRADIENT_COLORS, type CellState, type GameStatus} from "../types/bongotypes.ts";
-import { BingoCanvas } from "./BongoCanvas.tsx";
 import socketService from "../service/socketService.ts";
 import '../assets/style.css'
+import { BongoCanvas} from "./BongoCanvas.tsx";
 
 export const BongoMain: FC = () => {
     const [gameStatus, setGameStatus] = useState<GameStatus>('idle');
@@ -22,7 +22,6 @@ export const BongoMain: FC = () => {
     }, [cells]);
 
     // Initialize game grid
-    // In BongoMain.tsx, update the initializeCells function:
     const initializeCells = useCallback(() => {
         const gridCols = 4;
         const gridRows = 3;
@@ -37,7 +36,7 @@ export const BongoMain: FC = () => {
                     id,
                     value,
                     isRevealed: false,
-                    color: CELL_GRADIENT_COLORS[id % CELL_GRADIENT_COLORS.length][0], // Use first color as base
+                    color: CELL_GRADIENT_COLORS[id % CELL_GRADIENT_COLORS.length][0],
                     x,
                     y,
                 });
@@ -70,32 +69,37 @@ export const BongoMain: FC = () => {
 
         // Setup socket event listeners
         socketService.onGameStateUpdate((gameState: any) => {
+            console.log('📥 Received game state update:', gameState);
+
             if (gameState && gameState.cells) {
-                const currentCells = cellsRef.current;
-                const mergedCells = gameState.cells.map((cell: any, index: number) => {
-                    const existingCell = currentCells[index] || {
-                        id: index,
-                        value: index + 1,
-                        x: index % 4,
-                        y: Math.floor(index / 4),
-                        // color:/ CELL_COLORS[index % CELL_COLORS.length],
-                        isRevealed: false
-                    };
+                // Use the server's cell state directly
+                const serverCells = gameState.cells.map((cell: any) => ({
+                    id: cell.id,
+                    value: cell.value || cell.id + 1,
+                    isRevealed: cell.isRevealed || false,
+                    color: CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length][0],
+                    x: cell.x || cell.id % 4,
+                    y: cell.y || Math.floor(cell.id / 4)
+                }));
 
-                    return {
-                        ...existingCell,
-                        isRevealed: cell.isRevealed || false
-                    };
-                });
-
-                setCells(mergedCells.length > 0 ? mergedCells : initializeCells());
+                console.log('🔄 Setting cells from server:', serverCells);
+                setCells(serverCells);
             }
         });
 
         socketService.onCellRevealed((cellId: number) => {
-            setTimeout(() => {
-                revealCell(cellId, false);
-            }, 50);
+            console.log('📥 Cell revealed from server:', cellId);
+            // Update local state when server broadcasts a cell reveal
+            setCells(prev => {
+                const newCells = [...prev];
+                if (newCells[cellId]) {
+                    newCells[cellId] = {
+                        ...newCells[cellId],
+                        isRevealed: true
+                    };
+                }
+                return newCells;
+            });
         });
 
         socket.on('connect', () => {
@@ -111,7 +115,7 @@ export const BongoMain: FC = () => {
         return () => {
             socketService.disconnect();
         };
-    }, [roomId, initializeCells]);
+    }, [roomId]);
 
     // Generate room ID
     const generateRoomId = () => {
@@ -123,104 +127,62 @@ export const BongoMain: FC = () => {
         const initialCells = initializeCells();
         setCells(initialCells);
         cellsRef.current = initialCells;
+        setGameStatus('playing');
     }, [initializeCells]);
 
     // Reveal cell function
     const revealCell = useCallback((cellId: number, isLocalClick = true) => {
+        console.log('🔍 revealCell called with:', { cellId, isLocalClick });
+
         const currentCells = cellsRef.current;
 
-        if (!currentCells[cellId] || currentCells[cellId].isRevealed) {
+        // Check if cell exists and isn't already revealed
+        if (!currentCells[cellId]) {
+            console.error(`Cell ${cellId} not found`);
             return;
         }
 
-        // Set selected cell for animation
-        setSelectedCell(cellId);
+        if (currentCells[cellId].isRevealed) {
+            console.log(`Cell ${cellId} already revealed, ignoring`);
+            return;
+        }
 
-        // Update cell state
-        setTimeout(() => {
-            setCells(prev => {
-                const newCells = [...prev];
-                if (newCells[cellId]) {
-                    newCells[cellId] = {
-                        ...newCells[cellId],
-                        isRevealed: true
-                    };
-                }
-                return newCells;
-            });
+        console.log(`✅ Revealing cell ${cellId}, isLocalClick: ${isLocalClick}`);
 
-            // Broadcast to other devices if local click
-            if (isLocalClick && isConnected) {
-                socketService.cellClicked(cellId);
+        // Update state immediately for instant feedback
+        setCells(prev => {
+            const newCells = [...prev];
+            if (newCells[cellId]) {
+                newCells[cellId] = {
+                    ...newCells[cellId],
+                    isRevealed: true
+                };
             }
+            return newCells;
+        });
 
-            // Reset selected cell
-            setTimeout(() => {
-                setSelectedCell(null);
-            }, 500);
-        }, 300);
+        // Broadcast to other devices if this was a local click
+        if (isLocalClick && isConnected && socketRef.current) {
+            console.log(`📡 Broadcasting cell ${cellId} to other players`);
+            socketService.cellClicked(cellId);
+        }
     }, [isConnected]);
 
     // Handle local cell click
     const handleCellClick = useCallback((id: number) => {
+        console.log(`🎯 Cell clicked: ${id}`);
         revealCell(id, true);
     }, [revealCell]);
 
-    // Start/Restart game
-    const handleStartGame = useCallback(() => {
-        const newCells = initializeCells();
-        setCells(newCells);
-        cellsRef.current = newCells;
-        setGameStatus('playing');
-        setSelectedCell(null);
-    }, [initializeCells]);
-
-    // Auto-start game
-    useEffect(() => {
-        if (gameStatus === 'idle' || gameStatus === 'completed') {
-            setTimeout(() => {
-                handleStartGame();
-            }, 2000);
-        }
-    }, [gameStatus, handleStartGame]);
-
     return (
         <>
-                <BingoCanvas
-                    cells={cells}
-                    gameStatus={gameStatus}
-                    onCellClick={handleCellClick}
-                    selectedCell={selectedCell}
-                />
-
-
-            {/*<footer className="game-footer" style={{*/}
-            {/*    padding: '20px',*/}
-            {/*    textAlign: 'center',*/}
-            {/*    width: '100%',*/}
-            {/*    backgroundColor: '#FFFFFF',*/}
-            {/*    borderTop: '2px solid #E0E0E0'*/}
-            {/*}}>*/}
-            {/*    <div className="connection-status" style={{*/}
-            {/*        marginBottom: '10px',*/}
-            {/*        fontSize: '14px'*/}
-            {/*    }}>*/}
-            {/*        <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>*/}
-            {/*            {isConnected ? '🟢 Connected' : '🔴 Disconnected'}*/}
-            {/*        </div>*/}
-            {/*        <div className="room-info" style={{ marginTop: '5px' }}>*/}
-            {/*            <span>Room: <strong>{roomId}</strong></span>*/}
-            {/*        </div>*/}
-            {/*    </div>*/}
-
-            {/*    <div className="instructions" style={{*/}
-            {/*        fontSize: '12px',*/}
-            {/*        color: '#666'*/}
-            {/*    }}>*/}
-            {/*        <p>✨ Click any box to reveal prizes!</p>*/}
-            {/*        <p>📱 Share the room link for multiplayer</p>*/}
-            {/*    </div>*/}
-            {/*</footer>*/}
+            <BongoCanvas
+                cells={cells}
+                gameStatus={gameStatus}
+                onCellClick={handleCellClick}
+                selectedCell={selectedCell}
+                OnSetSelectedCell={setSelectedCell}
+            />
         </>
     );
 };
