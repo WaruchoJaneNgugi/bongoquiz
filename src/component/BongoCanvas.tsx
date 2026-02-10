@@ -168,7 +168,7 @@ export const BongoCanvas: React.FC<{
         const gradientColors = CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length] || ['#FFFFFF', '#F0F0F0'];
         const [topColor, bottomColor] = gradientColors;
 
-        const radius = Math.min(cellWidth, cellHeight) * 0.1; // Dynamic radius based on cell size
+        const radius = 25; // Dynamic radius based on cell size
 
         // === OUTER SHADOW ===
         ctx.save();
@@ -203,19 +203,18 @@ export const BongoCanvas: React.FC<{
             cellHeight - 4,
             radius - 2
         );
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
 
-        // === TOP GLOSS HIGHLIGHT ===
         ctx.save();
         drawRoundedRectPath(ctx, x, y, cellWidth, cellHeight, radius);
         ctx.clip();
 
         const gloss = ctx.createLinearGradient(x, y, x, y + cellHeight * 0.45);
-        gloss.addColorStop(0, 'rgba(255,255,255,0.45)');
-        gloss.addColorStop(1, 'rgba(255,255,255,0)');
+        gloss.addColorStop(0, 'rgba(66,61,61,0.45)');
+        gloss.addColorStop(1, 'rgba(42,33,33,0)');
 
         ctx.fillStyle = gloss;
         ctx.fillRect(x, y, cellWidth, cellHeight * 0.45);
@@ -224,7 +223,7 @@ export const BongoCanvas: React.FC<{
         if (isHovered && !isRevealed) {
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 2;
             ctx.shadowColor = 'rgba(255,255,255,0.8)';
             ctx.shadowBlur = 20;
             ctx.stroke();

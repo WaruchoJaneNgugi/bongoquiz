@@ -48,21 +48,22 @@ export const CELL_SOLID_COLORS = [
 export const CELL_GRADIENT_COLORS = [
     // Exact colors from your image - each is [topColor, bottomColor]
     // Row 1
-    ['#0A58CA', '#0D3B8A'], // Box 1 – Royal Blue
-    ['#D32F2F', '#8E0000'], // Box 2 – Game Show Red
-    ['#E0E0E0', '#B0B0B0'], // Box 3 – Silver / Neutral
-    ['#F9A825', '#C17900'], // Box 4 – Golden Orange
+    ['#0A82E8', '#02469f'], // Box 1 – Royal Blue
+    ['#9556CE', '#5f027c'], // Box 2 – Game Show Red
+    ['#5f6372', '#1c202a'], // Box 3 – Silver / Neutral
+    ['#F9A825', '#ffdd00'], // Box 4 – Golden Orange
 
 // Row 2
-    ['#2E7D32', '#1B5E20'], // Box 5 – Rich Green
+    ['#0e9b15', '#00ff13'], // Box 5 – Rich Green
     ['#FBC02D', '#F57F17'], // Box 6 – Bright Gold
-    ['#0B3C6D', '#06294A'], // Box 7 – Deep Navy
-    ['#7B1FA2', '#4A0072'], // Box 8 – Show Purple
+    ['#0754a1', '#0050ff'], // Box 7 – Deep Navy
+    ['#7B1FA2', '#bf00ff'], // Box 8 – Show Purple
 
 // Row 3
-    ['#1976D2', '#0D47A1'], // Box 9 – Bright Blue
-    ['#D81B60', '#880E4F'], // Box 10 – Magenta Pink
-    ['#263238', '#000000'], // Box 11 – Premium Black
-    ['#BDBDBD', '#9E9E9E'], // Box 12 – Light Silver
+    ['#1976D2', '#00c4ff'], // Box 9 – Bright Blue
+    ['#ff00d5', '#570017'], // Box 10 – Magenta Pink
+
+    ['#555761', 'rgba(0,0,0,0.15)'],// Box 11 – Premium Black
+    ['#fd0000', '#651503'], // Box 12 – Light Silver
 
 ];

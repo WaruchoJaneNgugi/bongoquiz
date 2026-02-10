@@ -6,5 +6,13 @@ export default defineConfig({
   plugins: [react()],
   server:{
     host:true
+  },
+  define: {
+    global: 'window',
+  },
+  resolve: {
+    alias: {
+      'simple-peer': 'simple-peer/simplepeer.min.js'
+    }
   }
 })
