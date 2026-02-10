@@ -168,7 +168,7 @@ export const BongoCanvas: React.FC<{
         const gradientColors = CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length] || ['#FFFFFF', '#F0F0F0'];
         const [topColor, bottomColor] = gradientColors;
 
-        const radius = 25; // Dynamic radius based on cell size
+        const radius = 15;
 
         // === OUTER SHADOW ===
         ctx.save();
