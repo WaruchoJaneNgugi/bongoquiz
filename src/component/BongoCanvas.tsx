@@ -282,15 +282,15 @@ export const BingoCanvas: React.FC<{
                 ctx.restore();
 
                 // Draw "WIN!" text
-                ctx.fillStyle = '#FFD700';
-                ctx.font = `bold ${cellHeight * 0.15}px Arial, sans-serif`;
+                // ctx.fillStyle = '#FFD700';
+                // ctx.font = `bold ${cellHeight * 0.15}px Arial, sans-serif`;
                 // ctx.fillText('WIN!', x + cellWidth/2, y + cellHeight - 20);
             }
 
             // Shimmering border effect for revealed cells
             ctx.save();
-            const shimmerSpeed = 0.01;
-            const shimmerThickness = 6;
+            const shimmerSpeed = 0.008;
+            const shimmerThickness = 3;
             const shimmerOpacity = 0.7 + Math.sin(time * shimmerSpeed) * 0.3;
 
             const shimmerGradient = ctx.createLinearGradient(x, y, x + cellWidth, y + cellHeight);
