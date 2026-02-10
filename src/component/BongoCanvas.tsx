@@ -284,7 +284,7 @@ export const BingoCanvas: React.FC<{
                 // Draw "WIN!" text
                 ctx.fillStyle = '#FFD700';
                 ctx.font = `bold ${cellHeight * 0.15}px Arial, sans-serif`;
-                ctx.fillText('WIN!', x + cellWidth/2, y + cellHeight - 20);
+                // ctx.fillText('WIN!', x + cellWidth/2, y + cellHeight - 20);
             }
 
             // Shimmering border effect for revealed cells
