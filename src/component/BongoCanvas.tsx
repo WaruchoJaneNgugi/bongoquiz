@@ -1,4 +1,5 @@
-// BongoCanvas.tsx - With Gradient Colors, Number Circle Background, and Modal Overlay
+// BongoCanvas.tsx - With improved click accuracy for larger canvas
+// Updated with full touch support for mobile devices and keyboard shortcuts
 import React, {useState, useCallback, useEffect, useRef} from 'react';
 import '../assets/style.css';
 import '../assets/modalOverlaybtn.css'
@@ -36,7 +37,6 @@ const PrizeModal: React.FC<{
                             <span className="modal-cell-number">{cell.value}</span>
                         </div>
                     </div>
-
                 </div>
 
                 <div className="modal-body">
@@ -49,46 +49,12 @@ const PrizeModal: React.FC<{
                             />
                         </div>
                         <h3 className="prize-title">{prizeItem.name}</h3>
-                        {/*<p className="prize-description">*/}
-                        {/*    {getPrizeDescription(prizeItem.name)}*/}
-                        {/*</p>*/}
                     </div>
                 </div>
-
-                {/*<div className="modal-footer">*/}
-                {/*    <button className="modal-action-btn" onClick={onClose}>*/}
-                {/*        Continue Playing*/}
-                {/*    </button>*/}
-                {/*</div>*/}
             </div>
         </div>
     );
 };
-
-// Helper function to get prize descriptions
-// const getPrizeDescription = (prizeName: string): string => {
-//     const descriptions: Record<string, string> = {
-//         "Bonus Time": "Gain extra time to answer questions!",
-//         "Borrowed Brain": "Use someone else's knowledge for one round!",
-//         "Disqualified": "Oops! This one's not good...",
-//         "Double Or Nothing": "Risk it all for double points!",
-//         "Double Points": "Earn double points on your next correct answer!",
-//         "Freeze Frame": "Freeze the timer for a moment!",
-//         "Insurance": "Protect your points from being stolen!",
-//         "Mirror Effect": "Reflect the next penalty onto another player!",
-//         "No Penalty": "Avoid penalties for one round!",
-//         "Point Chance Brain": "Test your luck for bonus points!",
-//         "Point Gamble": "Gamble your points for a chance to double them!",
-//         "Question Swap": "Swap a question with another player!",
-//         "Second Chance": "Get another attempt at a failed question!",
-//         "Steal A Point": "Steal a point from another player!",
-//         "Sudden Death Disqualified": "Immediate elimination if used!",
-//         "Swap Fate": "Swap positions with another player!",
-//         "Time Tax": "Other players lose time, you gain some!"
-//     };
-//
-//     return descriptions[prizeName] || "This is an amazing prize! You've won something special.";
-// };
 
 // Canvas Component
 export const BongoCanvas: React.FC<{
@@ -99,17 +65,27 @@ export const BongoCanvas: React.FC<{
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
     const hoveredCellRef = useRef<number | null>(null);
-    const [canvasSize, setCanvasSize] = useState({ width: 800, height: 700 });
+    const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 1200 });
     const [selectedCellDetails, setSelectedCellDetails] = useState<CellState | null>(null);
+    const [revealedTimes, setRevealedTimes] = useState<Record<number, number>>({});
     const [modalColors, setModalColors] = useState<{ topColor: string; bottomColor: string; circleColor: string; }>({
         topColor: '#FFFFFF',
         bottomColor: '#F0F0F0',
         circleColor: '#FFFFFF'
     });
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
+    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout>>(2);
 
     // Store loaded prize images
     const [loadedImages, setLoadedImages] = useState<Record<number, HTMLImageElement>>({});
+
+    // Grid configuration - REMOVED TITLE_HEIGHT
+    const GRID_COLS = 4;
+    const GRID_ROWS = 3;
+    const HORIZONTAL_PADDING = 40;
+    const VERTICAL_PADDING = 40;
+    const CELL_PADDING = 20;
 
     // Load prize images
     useEffect(() => {
@@ -144,6 +120,19 @@ export const BongoCanvas: React.FC<{
             loadImages();
         }
     }, [cells]);
+
+    // Function to show toast message
+    const showToast = useCallback((text: string, type: 'success' | 'error') => {
+        if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+        }
+
+        setToastMessage({ text, type });
+
+        toastTimeoutRef.current = setTimeout(() => {
+            setToastMessage(null);
+        }, 2000);
+    }, []);
 
     // Function to lighten a hex color
     const lightenColor = (color: string, percent: number): string => {
@@ -189,9 +178,15 @@ export const BongoCanvas: React.FC<{
     };
 
     // Handle cell click to open modal
-    const handleCellClick = useCallback((cellId: number) => {
+    const handleCellClick = useCallback((cellId: number, isKeyboardShortcut: boolean = false) => {
         const cell = cells.find(c => c.id === cellId);
         if (cell && !cell.isRevealed) {
+            // Record the time when this cell was revealed
+            setRevealedTimes(prev => ({
+                ...prev,
+                [cellId]: Date.now()
+            }));
+
             // Get cell colors
             const gradientColors = CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length] || ['#FFFFFF', '#F0F0F0'];
             const [topColor, bottomColor] = gradientColors;
@@ -207,8 +202,15 @@ export const BongoCanvas: React.FC<{
             setTimeout(() => {
                 setIsModalOpen(true);
             }, 300);
+
+            // Show success toast for keyboard shortcut
+            if (isKeyboardShortcut) {
+                showToast(`Box ${cell.value} opened with shortcut`, 'success');
+            }
+        } else if (cell?.isRevealed) {
+            showToast(`Box ${cell.value} is already opened!`, 'error');
         }
-    }, [cells, onCellClick]);
+    }, [cells, getCircleColor, onCellClick, showToast]);
 
     // Close modal
     const handleCloseModal = useCallback(() => {
@@ -218,7 +220,7 @@ export const BongoCanvas: React.FC<{
         }, 300);
     }, []);
 
-    // Update canvas size based on container
+    // Update canvas size based on container - MODIFIED FOR FULL SCREEN
     useEffect(() => {
         const updateCanvasSize = () => {
             if (containerRef.current && canvasRef.current) {
@@ -226,47 +228,24 @@ export const BongoCanvas: React.FC<{
                 const containerWidth = container.clientWidth;
                 const containerHeight = container.clientHeight;
 
-                const gridCols = 4;
-                const gridRows = 3;
+                // Use container dimensions for canvas size
+                const dpr = window.devicePixelRatio || 1;
 
-                const horizontalPadding = 20;
-                const verticalPadding = 20;
-                const cellPadding = 15;
-                const titleHeight = 0;
+                // Set canvas buffer size (high resolution)
+                canvasRef.current.width = containerWidth * dpr;
+                canvasRef.current.height = containerHeight * dpr;
 
-                const maxAvailableWidth = containerWidth - (horizontalPadding * 2) - (cellPadding * (gridCols - 1));
-                const maxAvailableHeight = containerHeight - (verticalPadding * 2) - (cellPadding * (gridRows - 1)) - titleHeight;
+                // Set canvas CSS size (full container)
+                canvasRef.current.style.width = `${containerWidth}px`;
+                canvasRef.current.style.height = `${containerHeight}px`;
 
-                const cellWidthFromWidth = maxAvailableWidth / gridCols;
-                const cellHeightFromHeight = maxAvailableHeight / gridRows;
-
-                const cellSize = Math.min(cellWidthFromWidth, cellHeightFromHeight);
-
-                let finalCellWidth = cellSize;
-                let finalCellHeight = cellSize;
-
-                if (cellHeightFromHeight < cellWidthFromWidth) {
-                    finalCellHeight = cellHeightFromHeight;
-                    finalCellWidth = Math.min(finalCellHeight, cellWidthFromWidth);
-                } else {
-                    finalCellWidth = cellSize;
-                    finalCellHeight = finalCellWidth;
-                }
-
-                const totalWidth = (finalCellWidth * gridCols) + (cellPadding * (gridCols - 1)) + (horizontalPadding * 2);
-                const totalHeight = (finalCellHeight * gridRows) + (cellPadding * (gridRows - 1)) + (verticalPadding * 2) + titleHeight;
-
+                // Update canvasSize state for drawing calculations
                 setCanvasSize({
-                    width: Math.min(totalWidth, containerWidth),
-                    height: Math.min(totalHeight, containerHeight)
+                    width: containerWidth,
+                    height: containerHeight
                 });
 
-                const canvas = canvasRef.current;
-                const dpr = window.devicePixelRatio || 1;
-                canvas.width = totalWidth * dpr;
-                canvas.height = totalHeight * dpr;
-
-                const ctx = canvas.getContext('2d');
+                const ctx = canvasRef.current.getContext('2d');
                 if (ctx) {
                     ctx.scale(dpr, dpr);
                 }
@@ -281,33 +260,118 @@ export const BongoCanvas: React.FC<{
         };
     }, []);
 
-    // Calculate cell dimensions
+    // Calculate cell dimensions - REMOVED TITLE_HEIGHT
     const getCellDimensions = useCallback(() => {
-        const gridCols = 4;
-        const gridRows = 3;
+        const availableWidth = canvasSize.width - (HORIZONTAL_PADDING * 2) - (CELL_PADDING * (GRID_COLS - 1));
+        const availableHeight = canvasSize.height - (VERTICAL_PADDING * 2) - (CELL_PADDING * (GRID_ROWS - 1));
 
-        const horizontalPadding = 20;
-        const verticalPadding = 20;
-        const cellPadding = 15;
-        const titleHeight = 0;
+        const cellWidthFromWidth = availableWidth / GRID_COLS;
+        const cellHeightFromHeight = availableHeight / GRID_ROWS;
 
-        const availableWidth = canvasSize.width - (horizontalPadding * 2) - (cellPadding * (gridCols - 1));
-        const availableHeight = canvasSize.height - (verticalPadding * 2) - (cellPadding * (gridRows - 1)) - titleHeight;
+        const cellSize = Math.min(cellWidthFromWidth, cellHeightFromHeight);
 
-        const cellWidth = availableWidth / gridCols;
-        const cellHeight = availableHeight / gridRows;
+        // Calculate actual grid dimensions
+        const actualCellWidth = cellSize;
+        const actualCellHeight = cellSize;
 
-        const cellSize = Math.min(cellWidth, cellHeight);
+        const totalGridWidth = (actualCellWidth * GRID_COLS) + (CELL_PADDING * (GRID_COLS - 1));
+        const totalGridHeight = (actualCellHeight * GRID_ROWS) + (CELL_PADDING * (GRID_ROWS - 1));
+
+        // Center the grid - REMOVED TITLE_HEIGHT
+        const startX = HORIZONTAL_PADDING + (availableWidth - totalGridWidth) / 2;
+        const startY = VERTICAL_PADDING + (availableHeight - totalGridHeight) / 2;
 
         return {
-            cellWidth: cellSize,
-            cellHeight: cellSize,
-            horizontalPadding,
-            verticalPadding,
-            cellPadding,
-            titleHeight
+            cellWidth: actualCellWidth,
+            cellHeight: actualCellHeight,
+            startX,
+            startY,
+            cellPadding: CELL_PADDING,
+            totalGridWidth,
+            totalGridHeight
         };
     }, [canvasSize]);
+
+    // Helper function to get cell at coordinates
+    const getCellAtCoordinates = useCallback((x: number, y: number) => {
+        const {
+            cellWidth,
+            cellHeight,
+            startX,
+            startY,
+            cellPadding
+        } = getCellDimensions();
+
+        // Calculate adjusted coordinates relative to grid start
+        const adjustedX = x - startX;
+        const adjustedY = y - startY;
+
+        // Check if coordinates are within grid bounds
+        const totalGridWidth = (cellWidth * GRID_COLS) + (cellPadding * (GRID_COLS - 1));
+        const totalGridHeight = (cellHeight * GRID_ROWS) + (cellPadding * (GRID_ROWS - 1));
+
+        if (adjustedX < 0 || adjustedX >= totalGridWidth ||
+            adjustedY < 0 || adjustedY >= totalGridHeight) {
+            return null;
+        }
+
+        // Calculate which cell was clicked
+        const col = Math.floor(adjustedX / (cellWidth + cellPadding));
+        const row = Math.floor(adjustedY / (cellHeight + cellPadding));
+
+        // Ensure col and row are within bounds
+        if (col >= GRID_COLS || row >= GRID_ROWS) {
+            return null;
+        }
+
+        // Find cell at position
+        const cell = cells.find(c => c.x === col && c.y === row);
+        return cell || null;
+    }, [cells, getCellDimensions]);
+
+    // Get cell by value (number displayed on box)
+    const getCellByValue = useCallback((value: number) => {
+        return cells.find(c => c.value === value);
+    }, [cells]);
+
+    // Get event coordinates helper function
+    const getEventCoordinates = useCallback((event: MouseEvent | Touch, canvas: HTMLCanvasElement) => {
+        const rect = canvas.getBoundingClientRect();
+
+        // Get the actual CSS size
+        const cssWidth = rect.width;
+        const cssHeight = rect.height;
+
+        // Get the canvas buffer size
+        const bufferWidth = canvas.width;
+        const bufferHeight = canvas.height;
+
+        // Calculate scale factors
+        const scaleX = bufferWidth / cssWidth;
+        const scaleY = bufferHeight / cssHeight;
+
+        let clientX, clientY;
+
+        if ('touches' in event) {
+            // Handle TouchEvent
+            clientX = event.clientX;
+            clientY = event.clientY;
+        } else {
+            // Handle MouseEvent
+            clientX = event.clientX;
+            clientY = event.clientY;
+        }
+
+        // Calculate coordinates relative to canvas buffer
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+
+        // Ensure coordinates are within canvas bounds
+        return {
+            x: Math.max(0, Math.min(x, bufferWidth)),
+            y: Math.max(0, Math.min(y, bufferHeight))
+        };
+    }, []);
 
     const drawRoundedRectPath = (
         ctx: CanvasRenderingContext2D,
@@ -330,20 +394,19 @@ export const BongoCanvas: React.FC<{
         ctx.closePath();
     };
 
-    // Draw gradient cell - updated to use images instead of emojis
+    // Draw gradient cell
     const drawCell = useCallback((
         ctx: CanvasRenderingContext2D,
         cell: CellState,
         cellWidth: number,
         cellHeight: number,
-        horizontalPadding: number,
-        verticalPadding: number,
+        startX: number,
+        startY: number,
         cellPadding: number,
-        titleHeight: number,
         time: number
     ) => {
-        const x = horizontalPadding + (cell.x * (cellWidth + cellPadding));
-        const y = verticalPadding + titleHeight + (cell.y * (cellHeight + cellPadding));
+        const x = startX + (cell.x * (cellWidth + cellPadding));
+        const y = startY + (cell.y * (cellHeight + cellPadding));
 
         const isHovered = hoveredCellRef.current === cell.id;
         const isRevealed = cell.isRevealed;
@@ -353,7 +416,7 @@ export const BongoCanvas: React.FC<{
 
         const circleColor = getCircleColor(topColor, bottomColor);
 
-        const radius = 15;
+        const radius = Math.min(15, cellWidth * 0.05);
 
         // === OUTER SHADOW ===
         ctx.save();
@@ -453,7 +516,7 @@ export const BongoCanvas: React.FC<{
             ctx.shadowOffsetY = 5;
 
             ctx.fillStyle = '#FFFFFF';
-            const fontSize = Math.max(16, cellHeight * 0.32);
+            const fontSize = Math.max(24, cellHeight * 0.32);
             ctx.font = `800 ${fontSize}px "Montserrat", Arial, sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -475,10 +538,19 @@ export const BongoCanvas: React.FC<{
             ctx.fill();
             ctx.restore();
 
+            // Check if the cell is still within the 3-second animation window
+            const revealTime = revealedTimes[cell.id];
+            const isAnimating = revealTime && (Date.now() - revealTime) < 3000; // 3 seconds
+
             // If we have a loaded prize image, show it
             if (cell.prizeItem && loadedImages[cell.id]) {
                 const img = loadedImages[cell.id];
-                const pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
+
+                // Only apply pulse animation if within 3 seconds
+                let pulseScale = 1;
+                if (isAnimating) {
+                    pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
+                }
 
                 ctx.save();
                 ctx.translate(x + cellWidth/2, y + cellHeight/2);
@@ -499,7 +571,11 @@ export const BongoCanvas: React.FC<{
                 ctx.restore();
             } else if (cell.prizeItem) {
                 // Fallback: Show the prize name if image hasn't loaded yet
-                const pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
+                let pulseScale = 1;
+                if (isAnimating) {
+                    pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
+                }
+
                 ctx.save();
                 ctx.translate(x + cellWidth/2, y + cellHeight/2);
                 ctx.scale(pulseScale, pulseScale);
@@ -513,40 +589,72 @@ export const BongoCanvas: React.FC<{
                 ctx.restore();
             }
 
-            // Shimmering border effect for revealed cells
-            ctx.save();
-            const shimmerSpeed = 0.008;
-            const shimmerThickness = 3;
-            const shimmerOpacity = 0.7 + Math.sin(time * shimmerSpeed) * 0.3;
+            // Shimmering border effect - only for 3 seconds
+            if (isAnimating) {
+                ctx.save();
+                const shimmerSpeed = 0.008;
+                const shimmerThickness = 3;
+                const shimmerOpacity = 0.7 + Math.sin(time * shimmerSpeed) * 0.3;
 
-            const shimmerGradient = ctx.createLinearGradient(x, y, x + cellWidth, y + cellHeight);
-            shimmerGradient.addColorStop(0, `rgba(255, 215, 0, ${shimmerOpacity})`);
-            shimmerGradient.addColorStop(0.25, `rgba(255, 255, 255, ${shimmerOpacity})`);
-            shimmerGradient.addColorStop(0.5, `rgba(255, 215, 0, ${shimmerOpacity})`);
-            shimmerGradient.addColorStop(0.75, `rgba(255, 255, 255, ${shimmerOpacity})`);
-            shimmerGradient.addColorStop(1, `rgba(255, 215, 0, ${shimmerOpacity})`);
+                const shimmerGradient = ctx.createLinearGradient(x, y, x + cellWidth, y + cellHeight);
+                shimmerGradient.addColorStop(0, `rgba(255, 215, 0, ${shimmerOpacity})`);
+                shimmerGradient.addColorStop(0.25, `rgba(255, 255, 255, ${shimmerOpacity})`);
+                shimmerGradient.addColorStop(0.5, `rgba(255, 215, 0, ${shimmerOpacity})`);
+                shimmerGradient.addColorStop(0.75, `rgba(255, 255, 255, ${shimmerOpacity})`);
+                shimmerGradient.addColorStop(1, `rgba(255, 215, 0, ${shimmerOpacity})`);
 
-            ctx.strokeStyle = shimmerGradient;
-            ctx.lineWidth = shimmerThickness;
-            ctx.lineJoin = 'round';
-            ctx.shadowColor = `rgba(255, 215, 0, ${shimmerOpacity * 0.8})`;
-            ctx.shadowBlur = 20;
+                ctx.strokeStyle = shimmerGradient;
+                ctx.lineWidth = shimmerThickness;
+                ctx.lineJoin = 'round';
+                ctx.shadowColor = `rgba(255, 215, 0, ${shimmerOpacity * 0.8})`;
+                ctx.shadowBlur = 20;
 
-            drawRoundedRectPath(ctx, x, y, cellWidth, cellHeight, radius);
-            ctx.stroke();
+                drawRoundedRectPath(ctx, x, y, cellWidth, cellHeight, radius);
+                ctx.stroke();
 
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = `rgba(255, 215, 0, ${shimmerOpacity * 0.4})`;
-            drawRoundedRectPath(ctx, x + shimmerThickness/2, y + shimmerThickness/2,
-                cellWidth - shimmerThickness, cellHeight - shimmerThickness,
-                Math.max(radius - shimmerThickness/2, 2));
-            ctx.stroke();
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = `rgba(255, 215, 0, ${shimmerOpacity * 0.4})`;
+                drawRoundedRectPath(ctx, x + shimmerThickness/2, y + shimmerThickness/2,
+                    cellWidth - shimmerThickness, cellHeight - shimmerThickness,
+                    Math.max(radius - shimmerThickness/2, 2));
+                ctx.stroke();
 
-            ctx.restore();
+                ctx.restore();
+            } else {
+                // Draw a subtle static border after animation stops
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = 'rgba(255, 215, 0, 0.2)';
+                ctx.shadowBlur = 10;
+
+                drawRoundedRectPath(ctx, x, y, cellWidth, cellHeight, radius);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
-    }, [loadedImages]);
+    }, [getCircleColor, loadedImages]);
+    useEffect(() => {
+        const cleanupInterval = setInterval(() => {
+            const now = Date.now();
+            setRevealedTimes(prev => {
+                const newTimes = { ...prev };
+                let hasChanges = false;
 
-    // Animation loop
+                Object.entries(newTimes).forEach(([id, time]) => {
+                    if (now - time > 3000) {
+                        delete newTimes[Number(id)];
+                        hasChanges = true;
+                    }
+                });
+
+                return hasChanges ? newTimes : prev;
+            });
+        }, 10000); // Clean up every 10 seconds
+
+        return () => clearInterval(cleanupInterval);
+    }, []);
+    // Animation loop - REMOVED TITLE DRAWING
     useEffect(() => {
         const animate = (time: number) => {
             const canvas = canvasRef.current;
@@ -561,15 +669,13 @@ export const BongoCanvas: React.FC<{
             const {
                 cellWidth,
                 cellHeight,
-                horizontalPadding,
-                verticalPadding,
-                cellPadding,
-                titleHeight
+                startX,
+                startY,
+                cellPadding
             } = getCellDimensions();
 
             cells.sort((a, b) => a.id - b.id).forEach(cell => {
-                drawCell(ctx, cell, cellWidth, cellHeight, horizontalPadding,
-                    verticalPadding, cellPadding, titleHeight, time);
+                drawCell(ctx, cell, cellWidth, cellHeight, startX, startY, cellPadding, time);
             });
 
             animationRef.current = requestAnimationFrame(animate);
@@ -582,93 +688,244 @@ export const BongoCanvas: React.FC<{
         };
     }, [cells, drawCell, canvasSize, getCellDimensions]);
 
-    // Handle mouse events
-    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Keyboard shortcut handler
+    useEffect(() => {
+        const handleKeyboardShortcut = (e: KeyboardEvent) => {
+            if (e.ctrlKey && !e.altKey && !e.metaKey) {
+
+                // Handle Ctrl+Q for box 11
+                if (e.key === 'q' || e.key === 'Q') {
+                    e.preventDefault();
+                    const cell = getCellByValue(11);
+
+                    if (cell) {
+                        if (!cell.isRevealed) {
+                            handleCellClick(cell.id, true);
+                        } else {
+                            showToast(`Box 11 is already opened!`, 'error');
+                        }
+                    } else {
+                        showToast(`Box 11 not found!`, 'error');
+                    }
+                    return;
+                }
+
+                // Handle Ctrl+W for box 12
+                if (e.key === 'w' || e.key === 'W') {
+                    e.preventDefault();
+                    const cell = getCellByValue(12);
+
+                    if (cell) {
+                        if (!cell.isRevealed) {
+                            handleCellClick(cell.id, true);
+                        } else {
+                            showToast(`Box 12 is already opened!`, 'error');
+                        }
+                    } else {
+                        showToast(`Box 12 not found!`, 'error');
+                    }
+                    return;
+                }
+
+                // Handle numbers 0-9 (boxes 1-10)
+                if (/^[0-9]$/.test(e.key)) {
+                    e.preventDefault();
+
+                    let boxNumber: number;
+
+                    if (e.key === '0') {
+                        boxNumber = 10;
+                    } else {
+                        boxNumber = parseInt(e.key);
+                    }
+
+                    const cell = getCellByValue(boxNumber);
+
+                    if (cell) {
+                        if (!cell.isRevealed) {
+                            handleCellClick(cell.id, true);
+                        } else {
+                            showToast(`Box ${boxNumber} is already opened!`, 'error');
+                        }
+                    } else {
+                        showToast(`Box ${boxNumber} not found!`, 'error');
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyboardShortcut);
+        return () => {
+            window.removeEventListener('keydown', handleKeyboardShortcut);
+        };
+    }, [getCellByValue, handleCellClick, showToast]);
+
+    // Mouse and touch event handlers
+    const handleCanvasMouseMove = useCallback((event: MouseEvent) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
+        const { x, y } = getEventCoordinates(event, canvas);
+        const cell = getCellAtCoordinates(x, y);
 
-        const x = (e.clientX - rect.left) * scaleX;
-        const y = (e.clientY - rect.top) * scaleY;
-
-        const {
-            cellWidth,
-            cellHeight,
-            horizontalPadding,
-            verticalPadding,
-            cellPadding,
-            titleHeight
-        } = getCellDimensions();
-
-        let foundHover = false;
-        cells.forEach(cell => {
-            const cellX = horizontalPadding + (cell.x * (cellWidth + cellPadding));
-            const cellY = verticalPadding + titleHeight + (cell.y * (cellHeight + cellPadding));
-
-            if (x >= cellX && x <= cellX + cellWidth &&
-                y >= cellY && y <= cellY + cellHeight) {
-                if (!cell.isRevealed && canvas.style.cursor !== 'pointer') {
-                    canvas.style.cursor = 'pointer';
-                }
-                hoveredCellRef.current = cell.id;
-                foundHover = true;
+        if (cell && !cell.isRevealed) {
+            if (canvas.style.cursor !== 'pointer') {
+                canvas.style.cursor = 'pointer';
             }
-        });
-
-        if (!foundHover) {
+            hoveredCellRef.current = cell.id;
+        } else {
             canvas.style.cursor = 'default';
             hoveredCellRef.current = null;
         }
-    }, [cells, getCellDimensions]);
+    }, [getEventCoordinates, getCellAtCoordinates]);
 
-    const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const handleCanvasClick = useCallback((event: MouseEvent) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
+        const { x, y } = getEventCoordinates(event, canvas);
+        const cell = getCellAtCoordinates(x, y);
 
-        const x = (e.clientX - rect.left) * scaleX;
-        const y = (e.clientY - rect.top) * scaleY;
+        if (cell && !cell.isRevealed) {
+            handleCellClick(cell.id);
+        }
+    }, [getEventCoordinates, getCellAtCoordinates, handleCellClick]);
 
-        const {
-            cellWidth,
-            cellHeight,
-            horizontalPadding,
-            verticalPadding,
-            cellPadding,
-            titleHeight
-        } = getCellDimensions();
+    const handleCanvasTouchStart = useCallback((event: TouchEvent) => {
+        event.preventDefault();
+        if (event.touches.length === 0) return;
 
-        for (const cell of cells) {
-            const cellX = horizontalPadding + (cell.x * (cellWidth + cellPadding));
-            const cellY = verticalPadding + titleHeight + (cell.y * (cellHeight + cellPadding));
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-            if (x >= cellX && x <= cellX + cellWidth &&
-                y >= cellY && y <= cellY + cellHeight) {
-                if (!cell.isRevealed) {
-                    handleCellClick(cell.id);
-                }
-                return;
+        const touch = event.touches[0];
+        const { x, y } = getEventCoordinates(touch, canvas);
+        const cell = getCellAtCoordinates(x, y);
+
+        if (cell && !cell.isRevealed) {
+            hoveredCellRef.current = cell.id;
+        }
+    }, [getEventCoordinates, getCellAtCoordinates]);
+
+    const handleCanvasTouchEnd = useCallback((event: TouchEvent) => {
+        event.preventDefault();
+        if (event.changedTouches.length === 0) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const touch = event.changedTouches[0];
+        const { x, y } = getEventCoordinates(touch, canvas);
+        const cell = getCellAtCoordinates(x, y);
+
+        if (cell && !cell.isRevealed) {
+            handleCellClick(cell.id);
+        }
+
+        hoveredCellRef.current = null;
+    }, [getEventCoordinates, getCellAtCoordinates, handleCellClick]);
+
+    // Setup event listeners
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        canvas.style.touchAction = 'none';
+        canvas.style.userSelect = 'none';
+
+        canvas.addEventListener('mousemove', handleCanvasMouseMove);
+        canvas.addEventListener('click', handleCanvasClick);
+        canvas.addEventListener('touchstart', handleCanvasTouchStart);
+        canvas.addEventListener('touchend', handleCanvasTouchEnd);
+
+        const handleMouseOut = () => {
+            hoveredCellRef.current = null;
+            if (canvas) {
+                canvas.style.cursor = 'default';
+            }
+        };
+
+        canvas.addEventListener('mouseout', handleMouseOut);
+
+        return () => {
+            canvas.removeEventListener('mousemove', handleCanvasMouseMove);
+            canvas.removeEventListener('click', handleCanvasClick);
+            canvas.removeEventListener('touchstart', handleCanvasTouchStart);
+            canvas.removeEventListener('touchend', handleCanvasTouchEnd);
+            canvas.removeEventListener('mouseout', handleMouseOut);
+        };
+    }, [handleCanvasMouseMove, handleCanvasClick, handleCanvasTouchStart, handleCanvasTouchEnd]);
+
+    // Handle keyboard accessibility
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLCanvasElement>) => {
+        if (['Enter', ' ', 'Spacebar'].includes(e.key)) {
+            e.preventDefault();
+            if (hoveredCellRef.current !== null) {
+                handleCellClick(hoveredCellRef.current);
             }
         }
-    }, [getCellDimensions, cells, handleCellClick]);
+    }, [handleCellClick]);
+
+    // Cleanup toast timeout
+    useEffect(() => {
+        return () => {
+            if (toastTimeoutRef.current) {
+                clearTimeout(toastTimeoutRef.current);
+            }
+        };
+    }, []);
 
     return (
-        <div ref={containerRef} className="bingo-canvas-container" style={{ width: '100%', height: '100%' }}>
-            <h1 className="title">Pick A Box</h1>
+        <div
+            ref={containerRef}
+            className="bingo-canvas-container"
+            style={{
+                width: '100vw',
+                height: '100vh',
+                position: 'fixed', // Changed from relative to fixed
+                top: 0,
+                left: 0,
+                overflow: 'hidden',
+                backgroundColor: '#191425'
+            }}
+        >
+            {/* Optional: Keyboard shortcuts hint - uncomment if needed */}
+            {/* <div className="shortcuts-hint" style={{...}}>...</div> */}
+
+            {/* Toast notification */}
+            {toastMessage && (
+                <div className="toast-notification" style={{
+                    position: 'absolute',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: toastMessage.type === 'success' ? 'rgba(76, 175, 80, 0.95)' : 'rgba(244, 67, 54, 0.95)',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '30px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    zIndex: 100,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                    animation: 'slideUp 0.3s ease'
+                }}>
+                    {toastMessage.text}
+                </div>
+            )}
 
             <canvas
                 ref={canvasRef}
-                width={600}
-                height={800}
                 className="bingo-canvas"
-                onMouseMove={handleMouseMove}
-                onClick={handleCanvasClick}
+                onKeyDown={handleKeyDown}
+                tabIndex={0}
+                role="button"
+                aria-label="Bingo game board with 12 selectable boxes. Use Ctrl+1-9 for boxes 1-9, Ctrl+0 for box 10, Ctrl+Q for box 11, and Ctrl+W for box 12."
+                style={{
+                    display: 'block',
+                    width: '100%',
+                    height: '100%',
+                    // objectFit: 'contain'
+                }}
             />
 
             <PrizeModal
@@ -677,6 +934,34 @@ export const BongoCanvas: React.FC<{
                 cell={selectedCellDetails}
                 cellColors={modalColors}
             />
+
+            <style>{`
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translate(-50%, 20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translate(-50%, 0);
+                    }
+                }
+                
+                body {
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                }
+                
+                .bingo-canvas-container {
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                .bingo-canvas {
+                    outline: none;
+                }
+            `}</style>
         </div>
     );
 };
