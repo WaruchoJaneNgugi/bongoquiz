@@ -1,13 +1,32 @@
-export type GameStatus = 'idle' | 'playing' | 'revealing' | 'completed';
-export type CellState = {
+export type GameStatus = 'idle' | 'playing' | 'revealing' | 'completed' | 'waiting';
+
+export interface CellState {
     id: number;
-    value: number; // 1-12
-    isRevealed: boolean;
-    color: string;
     x: number;
     y: number;
-};
+    value: number;
+    isRevealed: boolean;
+    revealedBy?: string; // Player ID who revealed it
+    revealedAt?: Date;
+}
 
+export interface Player {
+    id: string;
+    name?: string;
+    color?: string;
+    joinedAt: Date;
+}
+
+export interface GameState {
+    id: string;
+    cells: CellState[];
+    players: Player[];
+    gameStatus: GameStatus;
+    createdAt: Date;
+    hostId: string;
+}
+
+// Keep your existing PRIZE_IMAGES and CELL_GRADIENT_COLORS arrays
 // Prize emojis
 export const PRIZE_IMAGES = [
     '🏆', '🎮', '🎯', '🎁', '💰', '💎',

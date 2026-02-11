@@ -1,5 +1,4 @@
-// BongoCanvas.tsx - With Gradient Colors
-// BongoCanvas.tsx - With cells that fill the available height
+// BongoCanvas.tsx - With Gradient Colors and Number Circle Background
 import React, {useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction} from 'react';
 import '../assets/style.css';
 import {type CellState, type GameStatus, PRIZE_IMAGES, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
@@ -11,13 +10,60 @@ export const BongoCanvas: React.FC<{
     onCellClick: (id: number) => void;
     selectedCell: number | null;
     OnSetSelectedCell:Dispatch<SetStateAction<number|null>>
-}> = ({ cells, onCellClick,OnSetSelectedCell }) => {
+}> = ({ cells, onCellClick, OnSetSelectedCell }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
     const hoveredCellRef = useRef<number | null>(null);
     // const timeRef = useRef<number>(0);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 700 });
+
+    // Function to lighten a hex color
+    const lightenColor = (color: string, percent: number): string => {
+        const num = parseInt(color.replace('#', ''), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = ((num >> 8) & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+
+        return `#${(
+            0x1000000 +
+            (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+            (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+            (B < 255 ? (B < 1 ? 0 : B) : 255)
+        )
+            .toString(16)
+            .slice(1)
+            .toUpperCase()}`;
+    };
+
+    // Function to get circle color from gradient colors
+    const getCircleColor = (topColor: string, bottomColor: string): string => {
+        // Parse hex colors to RGB
+        const hexToRgb = (hex: string): [number, number, number] => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return [r, g, b];
+        };
+
+        const rgbToHex = (r: number, g: number, b: number): string => {
+            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        };
+
+        // Get average of top and bottom colors
+        const [r1, g1, b1] = hexToRgb(topColor);
+        const [r2, g2, b2] = hexToRgb(bottomColor);
+
+        // Calculate average RGB
+        const avgR = Math.round((r1 + r2) / 2);
+        const avgG = Math.round((g1 + g2) / 2);
+        const avgB = Math.round((b1 + b2) / 2);
+
+        // Convert back to hex and lighten it
+        const avgColor = rgbToHex(avgR, avgG, avgB);
+        return lightenColor(avgColor, 25); // Lighten by 25%
+    };
 
     // Update canvas size based on container
     useEffect(() => {
@@ -168,6 +214,9 @@ export const BongoCanvas: React.FC<{
         const gradientColors = CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length] || ['#FFFFFF', '#F0F0F0'];
         const [topColor, bottomColor] = gradientColors;
 
+        // Get circle color (lighter shade of the cell's background)
+        const circleColor = getCircleColor(topColor, bottomColor);
+
         const radius = 15;
 
         // === OUTER SHADOW ===
@@ -227,6 +276,39 @@ export const BongoCanvas: React.FC<{
             ctx.shadowColor = 'rgba(255,255,255,0.8)';
             ctx.shadowBlur = 20;
             ctx.stroke();
+            ctx.restore();
+        }
+
+        // Draw circle behind number (only if not revealed)
+        if (!isRevealed) {
+            ctx.save();
+
+            // Circle position and size
+            const circleX = x + cellWidth / 2;
+            const circleY = y + cellHeight / 2;
+            const circleRadius = Math.min(cellWidth, cellHeight) * 0.25;
+
+            // Draw circle with shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 3;
+
+            ctx.beginPath();
+            ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+            ctx.fillStyle = circleColor;
+            ctx.fill();
+
+            // Add subtle inner glow
+            ctx.shadowColor = 'rgba(255,255,255,0.3)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 0;
+
+            ctx.beginPath();
+            ctx.arc(circleX, circleY, circleRadius - 1, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
             ctx.restore();
         }
 
@@ -443,7 +525,7 @@ export const BongoCanvas: React.FC<{
 
             <canvas
                 ref={canvasRef}
-                width={600}
+                width={800}
                 height={800}
                 className="bingo-canvas"
                 onMouseMove={handleMouseMove}
