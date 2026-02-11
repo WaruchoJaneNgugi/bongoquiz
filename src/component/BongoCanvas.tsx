@@ -390,6 +390,7 @@ export const BongoCanvas: React.FC<{
     }, [canvasSize]);
 
     // Helper function to get cell at coordinates
+    // Helper function to get cell at coordinates - IMPROVED ACCURACY FOR TOUCH DEVICES
     const getCellAtCoordinates = useCallback((x: number, y: number) => {
         const {
             cellWidth,
@@ -403,21 +404,27 @@ export const BongoCanvas: React.FC<{
         const adjustedX = x - startX;
         const adjustedY = y - startY;
 
-        // Check if coordinates are within grid bounds
+        // Check if coordinates are within grid bounds with a small margin
         const totalGridWidth = (cellWidth * GRID_COLS) + (cellPadding * (GRID_COLS - 1));
         const totalGridHeight = (cellHeight * GRID_ROWS) + (cellPadding * (GRID_ROWS - 1));
 
-        if (adjustedX < 0 || adjustedX >= totalGridWidth ||
-            adjustedY < 0 || adjustedY >= totalGridHeight) {
+        // Add a larger margin for touch devices (10px) to make tapping easier
+        const margin = 10;
+        if (adjustedX < -margin || adjustedX > totalGridWidth + margin ||
+            adjustedY < -margin || adjustedY > totalGridHeight + margin) {
             return null;
         }
 
-        // Calculate which cell was clicked
-        const col = Math.floor(adjustedX / (cellWidth + cellPadding));
-        const row = Math.floor(adjustedY / (cellHeight + cellPadding));
+        // Clamp values to grid bounds
+        const clampedX = Math.max(0, Math.min(adjustedX, totalGridWidth));
+        const clampedY = Math.max(0, Math.min(adjustedY, totalGridHeight));
+
+        // Calculate which cell was clicked with more precise calculation
+        const col = Math.floor(clampedX / (cellWidth + cellPadding));
+        const row = Math.floor(clampedY / (cellHeight + cellPadding));
 
         // Ensure col and row are within bounds
-        if (col >= GRID_COLS || row >= GRID_ROWS) {
+        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
             return null;
         }
 
@@ -470,7 +477,8 @@ export const BongoCanvas: React.FC<{
     //     };
     // }, []);
     // Get event coordinates helper function - IMPROVED FOR ALL DEVICES
-    const getEventCoordinates = useCallback((event: MouseEvent | Touch, canvas: HTMLCanvasElement) => {
+    // Get event coordinates helper function - IMPROVED FOR ALL DEVICES WITH PROPER TYPE NARROWING
+    const getEventCoordinates = useCallback((event: MouseEvent | TouchEvent, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
 
         // Get the canvas buffer size
@@ -487,10 +495,17 @@ export const BongoCanvas: React.FC<{
 
         let clientX, clientY;
 
+        // Check if it's a TouchEvent
         if ('touches' in event) {
             // Handle TouchEvent
-            clientX = event.touches[0].clientX;
-            clientY = event.touches[0].clientY;
+            if (event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                // Fallback if no touches
+                clientX = 0;
+                clientY = 0;
+            }
         } else {
             // Handle MouseEvent
             clientX = event.clientX;
@@ -959,12 +974,15 @@ export const BongoCanvas: React.FC<{
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const touch = event.touches[0];
-        const {x, y} = getEventCoordinates(touch, canvas);
+        const {x, y} = getEventCoordinates(event, canvas);
         const cell = getCellAtCoordinates(x, y);
 
         if (cell && !cell.isRevealed) {
             hoveredCellRef.current = cell.id;
+            // Also set cursor style for visual feedback
+            if (canvas.style.cursor !== 'pointer') {
+                canvas.style.cursor = 'pointer';
+            }
         }
     }, [getEventCoordinates, getCellAtCoordinates]);
 
@@ -975,8 +993,8 @@ export const BongoCanvas: React.FC<{
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const touch = event.changedTouches[0];
-        const {x, y} = getEventCoordinates(touch, canvas);
+        // const touch = event.changedTouches[0];
+        const {x, y} = getEventCoordinates(event, canvas);
         const cell = getCellAtCoordinates(x, y);
 
         if (cell && !cell.isRevealed) {
@@ -984,6 +1002,7 @@ export const BongoCanvas: React.FC<{
         }
 
         hoveredCellRef.current = null;
+        canvas.style.cursor = 'default';
     }, [getEventCoordinates, getCellAtCoordinates, handleCellClick]);
 
     // Setup event listeners
