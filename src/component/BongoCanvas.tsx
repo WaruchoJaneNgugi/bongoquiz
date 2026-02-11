@@ -301,23 +301,26 @@ export const BongoCanvas: React.FC<{
     }, []);
 
     // Update canvas size based on container - MODIFIED FOR FULL SCREEN
+    // Update canvas size based on container - IMPROVED DPI HANDLING
     useEffect(() => {
         const updateCanvasSize = () => {
             if (containerRef.current && canvasRef.current) {
                 const container = containerRef.current;
+                const canvas = canvasRef.current;
+
                 const containerWidth = container.clientWidth;
                 const containerHeight = container.clientHeight;
 
-                // Use container dimensions for canvas size
-                const dpr = window.devicePixelRatio || 1;
+                // Get device pixel ratio, but cap it to avoid performance issues
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-                // Set canvas buffer size (high resolution)
-                canvasRef.current.width = containerWidth * dpr;
-                canvasRef.current.height = containerHeight * dpr;
+                // Set canvas buffer size (with DPI consideration)
+                canvas.width = containerWidth * dpr;
+                canvas.height = containerHeight * dpr;
 
-                // Set canvas CSS size (full container)
-                canvasRef.current.style.width = `${containerWidth}px`;
-                canvasRef.current.style.height = `${containerHeight}px`;
+                // Set canvas CSS size
+                canvas.style.width = `${containerWidth}px`;
+                canvas.style.height = `${containerHeight}px`;
 
                 // Update canvasSize state for drawing calculations
                 setCanvasSize({
@@ -325,18 +328,32 @@ export const BongoCanvas: React.FC<{
                     height: containerHeight
                 });
 
-                const ctx = canvasRef.current.getContext('2d');
+                const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.scale(dpr, dpr);
+                    // Enable anti-aliasing for smoother rendering
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
                 }
             }
         };
 
         updateCanvasSize();
+
+        // Use ResizeObserver for more accurate size detection
+        const resizeObserver = new ResizeObserver(() => {
+            updateCanvasSize();
+        });
+
+        if (containerRef.current) {
+            resizeObserver.observe(containerRef.current);
+        }
+
         window.addEventListener('resize', updateCanvasSize);
 
         return () => {
             window.removeEventListener('resize', updateCanvasSize);
+            resizeObserver.disconnect();
         };
     }, []);
 
@@ -415,18 +432,56 @@ export const BongoCanvas: React.FC<{
     }, [cells]);
 
     // Get event coordinates helper function
+    // const getEventCoordinates = useCallback((event: MouseEvent | Touch, canvas: HTMLCanvasElement) => {
+    //     const rect = canvas.getBoundingClientRect();
+    //
+    //     // Get the actual CSS size
+    //     const cssWidth = rect.width;
+    //     const cssHeight = rect.height;
+    //
+    //     // Get the canvas buffer size
+    //     const bufferWidth = canvas.width;
+    //     const bufferHeight = canvas.height;
+    //
+    //     // Calculate scale factors
+    //     const scaleX = bufferWidth / cssWidth;
+    //     const scaleY = bufferHeight / cssHeight;
+    //
+    //     let clientX, clientY;
+    //
+    //     if ('touches' in event) {
+    //         // Handle TouchEvent
+    //         clientX = event.clientX;
+    //         clientY = event.clientY;
+    //     } else {
+    //         // Handle MouseEvent
+    //         clientX = event.clientX;
+    //         clientY = event.clientY;
+    //     }
+    //
+    //     // Calculate coordinates relative to canvas buffer
+    //     const x = (clientX - rect.left) * scaleX;
+    //     const y = (clientY - rect.top) * scaleY;
+    //
+    //     // Ensure coordinates are within canvas bounds
+    //     return {
+    //         x: Math.max(0, Math.min(x, bufferWidth)),
+    //         y: Math.max(0, Math.min(y, bufferHeight))
+    //     };
+    // }, []);
+    // Get event coordinates helper function - IMPROVED FOR ALL DEVICES
     const getEventCoordinates = useCallback((event: MouseEvent | Touch, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
-
-        // Get the actual CSS size
-        const cssWidth = rect.width;
-        const cssHeight = rect.height;
 
         // Get the canvas buffer size
         const bufferWidth = canvas.width;
         const bufferHeight = canvas.height;
 
-        // Calculate scale factors
+        // Get the actual CSS size
+        const cssWidth = rect.width;
+        const cssHeight = rect.height;
+
+        // Calculate scale factors more precisely
         const scaleX = bufferWidth / cssWidth;
         const scaleY = bufferHeight / cssHeight;
 
@@ -434,23 +489,23 @@ export const BongoCanvas: React.FC<{
 
         if ('touches' in event) {
             // Handle TouchEvent
-            clientX = event.clientX;
-            clientY = event.clientY;
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
         } else {
             // Handle MouseEvent
             clientX = event.clientX;
             clientY = event.clientY;
         }
 
-        // Calculate coordinates relative to canvas buffer
-        const x = (clientX - rect.left) * scaleX;
-        const y = (clientY - rect.top) * scaleY;
+        // Calculate coordinates relative to canvas with precise scaling
+        let x = (clientX - rect.left) * scaleX;
+        let y = (clientY - rect.top) * scaleY;
 
-        // Ensure coordinates are within canvas bounds
-        return {
-            x: Math.max(0, Math.min(x, bufferWidth)),
-            y: Math.max(0, Math.min(y, bufferHeight))
-        };
+        // Add small epsilon to handle floating point errors
+        x = Math.max(0, Math.min(x, bufferWidth - 0.1));
+        y = Math.max(0, Math.min(y, bufferHeight - 0.1));
+
+        return { x, y };
     }, []);
 
     const drawRoundedRectPath = (
@@ -1068,6 +1123,53 @@ export const BongoCanvas: React.FC<{
                     outline: none;
                 }
             `}</style>
+            <style>{`
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .bingo-canvas-container {
+        margin: 0;
+        padding: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+    }
+    
+    .bingo-canvas {
+        outline: none;
+        display: block;
+        width: 100%;
+        height: 100%;
+        /* Prevent any scaling that might affect coordinate calculations */
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+    
+    /* Specific fix for ASUS devices */
+    @media (hover: none) and (pointer: coarse) {
+        .bingo-canvas {
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    }
+`}</style>
         </div>
     );
 };
