@@ -132,9 +132,9 @@ export const BongoCanvas: React.FC<{
 
     const GRID_COLS = 4;
     const GRID_ROWS = 3;
-    const HORIZONTAL_PADDING = 30;
-    const VERTICAL_PADDING = 30;
-    const CELL_PADDING = 10;
+    // const HORIZONTAL_PADDING = 30;
+    // const VERTICAL_PADDING = 30;
+    // const CELL_PADDING = 10;
 
     // Load prize images
     useEffect(() => {
@@ -358,9 +358,15 @@ export const BongoCanvas: React.FC<{
     }, []);
 
     // Calculate cell dimensions - REMOVED TITLE_HEIGHT
+    // Calculate cell dimensions - IMPROVED FOR CONSISTENT ACROSS DEVICES
     const getCellDimensions = useCallback(() => {
-        const availableWidth = canvasSize.width - (HORIZONTAL_PADDING * 2) - (CELL_PADDING * (GRID_COLS - 1));
-        const availableHeight = canvasSize.height - (VERTICAL_PADDING * 2) - (CELL_PADDING * (GRID_ROWS - 1));
+        // Use percentage-based padding instead of fixed pixels
+        const horizontalPadding = canvasSize.width * 0.05; // 5% of canvas width
+        const verticalPadding = canvasSize.height * 0.05; // 5% of canvas height
+        const cellPadding = Math.min(canvasSize.width, canvasSize.height) * 0.015; // 1.5% of smallest dimension
+
+        const availableWidth = canvasSize.width - (horizontalPadding * 2) - (cellPadding * (GRID_COLS - 1));
+        const availableHeight = canvasSize.height - (verticalPadding * 2) - (cellPadding * (GRID_ROWS - 1));
 
         const cellWidthFromWidth = availableWidth / GRID_COLS;
         const cellHeightFromHeight = availableHeight / GRID_ROWS;
@@ -371,26 +377,30 @@ export const BongoCanvas: React.FC<{
         const actualCellWidth = cellSize;
         const actualCellHeight = cellSize;
 
-        const totalGridWidth = (actualCellWidth * GRID_COLS) + (CELL_PADDING * (GRID_COLS - 1));
-        const totalGridHeight = (actualCellHeight * GRID_ROWS) + (CELL_PADDING * (GRID_ROWS - 1));
+        const totalGridWidth = (actualCellWidth * GRID_COLS) + (cellPadding * (GRID_COLS - 1));
+        const totalGridHeight = (actualCellHeight * GRID_ROWS) + (cellPadding * (GRID_ROWS - 1));
 
-        // Center the grid - REMOVED TITLE_HEIGHT
-        const startX = HORIZONTAL_PADDING + (availableWidth - totalGridWidth) / 2;
-        const startY = VERTICAL_PADDING + (availableHeight - totalGridHeight) / 2;
+        // Center the grid
+        const startX = (canvasSize.width - totalGridWidth) / 2;
+        const startY = (canvasSize.height - totalGridHeight) / 2;
 
         return {
             cellWidth: actualCellWidth,
             cellHeight: actualCellHeight,
             startX,
             startY,
-            cellPadding: CELL_PADDING,
+            cellPadding,
             totalGridWidth,
-            totalGridHeight
+            totalGridHeight,
+            // Store these for debugging
+            horizontalPadding,
+            verticalPadding
         };
     }, [canvasSize]);
 
     // Helper function to get cell at coordinates
     // Helper function to get cell at coordinates - IMPROVED ACCURACY FOR TOUCH DEVICES
+    // Helper function to get cell at coordinates - FIXED FOR ASUS
     const getCellAtCoordinates = useCallback((x: number, y: number) => {
         const {
             cellWidth,
@@ -404,35 +414,56 @@ export const BongoCanvas: React.FC<{
         const adjustedX = x - startX;
         const adjustedY = y - startY;
 
-        // Check if coordinates are within grid bounds with a small margin
+        // Check if coordinates are within grid bounds
         const totalGridWidth = (cellWidth * GRID_COLS) + (cellPadding * (GRID_COLS - 1));
         const totalGridHeight = (cellHeight * GRID_ROWS) + (cellPadding * (GRID_ROWS - 1));
 
-        // Add a larger margin for touch devices (10px) to make tapping easier
-        const margin = 10;
+        // Add a larger margin for all devices to make tapping easier
+        const margin = 15;
         if (adjustedX < -margin || adjustedX > totalGridWidth + margin ||
             adjustedY < -margin || adjustedY > totalGridHeight + margin) {
             return null;
         }
 
-        // Clamp values to grid bounds
-        const clampedX = Math.max(0, Math.min(adjustedX, totalGridWidth));
-        const clampedY = Math.max(0, Math.min(adjustedY, totalGridHeight));
-
-        // Calculate which cell was clicked with more precise calculation
-        const col = Math.floor(clampedX / (cellWidth + cellPadding));
-        const row = Math.floor(clampedY / (cellHeight + cellPadding));
+        // Calculate which cell was clicked - use floor with bounds checking
+        let col = Math.floor(adjustedX / (cellWidth + cellPadding));
+        let row = Math.floor(adjustedY / (cellHeight + cellPadding));
 
         // Ensure col and row are within bounds
-        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
-            return null;
+        col = Math.max(0, Math.min(col, GRID_COLS - 1));
+        row = Math.max(0, Math.min(row, GRID_ROWS - 1));
+
+        // Find cell at position with exact match
+        const cell = cells.find(c => c.x === col && c.y === row);
+
+        // If no exact match, try nearest cell (for edge cases)
+        if (!cell) {
+            // Calculate distances to all cells and find the closest one
+            let closestCell = null;
+            let minDistance = Infinity;
+
+            cells.forEach(c => {
+                const cellX = startX + (c.x * (cellWidth + cellPadding));
+                const cellY = startY + (c.y * (cellHeight + cellPadding));
+                const distance = Math.sqrt(
+                    Math.pow(x - (cellX + cellWidth/2), 2) +
+                    Math.pow(y - (cellY + cellHeight/2), 2)
+                );
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCell = c;
+                }
+            });
+
+            // Only return closest cell if it's within a reasonable distance
+            if (minDistance < cellWidth * 0.8) {
+                return closestCell;
+            }
         }
 
-        // Find cell at position
-        const cell = cells.find(c => c.x === col && c.y === row);
         return cell || null;
     }, [cells, getCellDimensions]);
-
     // Get cell by value (number displayed on box)
     const getCellByValue = useCallback((value: number) => {
         return cells.find(c => c.value === value);
@@ -478,6 +509,7 @@ export const BongoCanvas: React.FC<{
     // }, []);
     // Get event coordinates helper function - IMPROVED FOR ALL DEVICES
     // Get event coordinates helper function - IMPROVED FOR ALL DEVICES WITH PROPER TYPE NARROWING
+    // Get event coordinates helper function - ULTRA ACCURATE
     const getEventCoordinates = useCallback((event: MouseEvent | TouchEvent, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
 
@@ -489,22 +521,23 @@ export const BongoCanvas: React.FC<{
         const cssWidth = rect.width;
         const cssHeight = rect.height;
 
-        // Calculate scale factors more precisely
+        // Calculate scale factors with high precision
         const scaleX = bufferWidth / cssWidth;
         const scaleY = bufferHeight / cssHeight;
 
         let clientX, clientY;
 
-        // Check if it's a TouchEvent
         if ('touches' in event) {
             // Handle TouchEvent
             if (event.touches.length > 0) {
                 clientX = event.touches[0].clientX;
                 clientY = event.touches[0].clientY;
+            } else if (event.changedTouches?.length > 0) {
+                // For touchend events
+                clientX = event.changedTouches[0].clientX;
+                clientY = event.changedTouches[0].clientY;
             } else {
-                // Fallback if no touches
-                clientX = 0;
-                clientY = 0;
+                return { x: 0, y: 0 };
             }
         } else {
             // Handle MouseEvent
@@ -516,9 +549,9 @@ export const BongoCanvas: React.FC<{
         let x = (clientX - rect.left) * scaleX;
         let y = (clientY - rect.top) * scaleY;
 
-        // Add small epsilon to handle floating point errors
-        x = Math.max(0, Math.min(x, bufferWidth - 0.1));
-        y = Math.max(0, Math.min(y, bufferHeight - 0.1));
+        // Clamp to valid range
+        x = Math.max(0, Math.min(x, bufferWidth));
+        y = Math.max(0, Math.min(y, bufferHeight));
 
         return { x, y };
     }, []);
