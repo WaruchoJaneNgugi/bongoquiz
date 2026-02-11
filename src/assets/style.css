@@ -74,11 +74,6 @@ body {
     }
 }
 
-.main-bongo-container{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 /* Main Game Container */
 .bingo-game {
     display: flex;

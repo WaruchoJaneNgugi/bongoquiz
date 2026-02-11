@@ -1,9 +1,15 @@
 // BongoCanvas.tsx - With improved click accuracy for larger canvas
 // Updated with full touch support for mobile devices and keyboard shortcuts
-import React, {useState, useCallback, useEffect, useRef} from 'react';
+import React, {useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction} from 'react';
 import '../assets/style.css';
 import '../assets/modalOverlaybtn.css'
-import {type CellState, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
+import {
+    type CellState,
+    CELL_GRADIENT_COLORS,
+    type PrizeSelectionMode,
+    getPrizeItemsByMode,
+    assignPrizesToCells
+} from "../types/bongotypes.ts";
 
 // Modal Component for showing prize details
 const PrizeModal: React.FC<{
@@ -11,7 +17,7 @@ const PrizeModal: React.FC<{
     onClose: () => void;
     cell: CellState | null;
     cellColors: { topColor: string; bottomColor: string; circleColor: string; };
-}> = ({ isOpen, onClose, cell, cellColors }) => {
+}> = ({isOpen, onClose, cell, cellColors}) => {
     if (!isOpen || !cell || !cell.prizeItem) return null;
 
     const prizeItem = cell.prizeItem;
@@ -23,32 +29,72 @@ const PrizeModal: React.FC<{
                     ✕
                 </button>
 
-                <div className="modal-header">
-                    <div
-                        className="modal-cell-preview"
+                <div className="modal-body" style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <img
+                        src={prizeItem.img}
+                        alt={prizeItem.name}
+                        className="prize-image"
                         style={{
-                            background: `linear-gradient(to bottom, ${cellColors.topColor}, ${cellColors.bottomColor})`,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain'
                         }}
-                    >
-                        <div
-                            className="modal-circle"
-                            style={{ backgroundColor: cellColors.circleColor }}
-                        >
-                            <span className="modal-cell-number">{cell.value}</span>
-                        </div>
-                    </div>
-                </div>
+                    />
 
-                <div className="modal-body">
-                    <div className="prize-display">
-                        <div className="prize-image-container">
-                            <img
-                                src={prizeItem.img}
-                                alt={prizeItem.name}
-                                className="prize-image"
-                            />
+                    <div className="modal-header" style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        left: '70%',
+                        transform: 'translateX(100%)',
+                        width: 'auto',
+                        padding: '10px',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 10
+                    }}>
+                        <div
+                            className="modal-cell-preview"
+                            style={{
+                                background: `linear-gradient(to bottom, ${cellColors.topColor}, ${cellColors.bottomColor})`,
+                                padding: '15px',
+                                borderRadius: '15px',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center'
+                            }}
+                        >
+                            <div
+                                className="modal-circle"
+                                style={{
+                                    backgroundColor: cellColors.circleColor,
+                                    width: '60px',
+                                    height: '60px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <div className="modal-cell-number" style={{
+                                    fontSize: '24px',
+                                    fontWeight: 'bold',
+                                    color: '#FFFFFF',
+                                    textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+                                }}>
+                                    {cell.value}
+                                </div>
+                            </div>
                         </div>
-                        <h3 className="prize-title">{prizeItem.name}</h3>
                     </div>
                 </div>
             </div>
@@ -60,12 +106,16 @@ const PrizeModal: React.FC<{
 export const BongoCanvas: React.FC<{
     cells: CellState[];
     onCellClick: (id: number) => void;
-}> = ({ cells, onCellClick }) => {
+    onRefreshGrid?:()=>void;
+    onCellChange:Dispatch<SetStateAction<CellState[]>>
+}> = ({cells, onCellClick,onRefreshGrid,onCellChange}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
+    const [prizeMode, setPrizeMode] = useState<PrizeSelectionMode>('random');
+
     const hoveredCellRef = useRef<number | null>(null);
-    const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 1200 });
+    const [canvasSize, setCanvasSize] = useState({width: 1200, height: 1200});
     const [selectedCellDetails, setSelectedCellDetails] = useState<CellState | null>(null);
     const [revealedTimes, setRevealedTimes] = useState<Record<number, number>>({});
     const [modalColors, setModalColors] = useState<{ topColor: string; bottomColor: string; circleColor: string; }>({
@@ -74,18 +124,17 @@ export const BongoCanvas: React.FC<{
         circleColor: '#FFFFFF'
     });
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [toastMessage, setToastMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
+    const [toastMessage, setToastMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
     const toastTimeoutRef = useRef<ReturnType<typeof setTimeout>>(2);
 
     // Store loaded prize images
     const [loadedImages, setLoadedImages] = useState<Record<number, HTMLImageElement>>({});
 
-    // Grid configuration - REMOVED TITLE_HEIGHT
     const GRID_COLS = 4;
     const GRID_ROWS = 3;
-    const HORIZONTAL_PADDING = 40;
-    const VERTICAL_PADDING = 40;
-    const CELL_PADDING = 20;
+    const HORIZONTAL_PADDING = 30;
+    const VERTICAL_PADDING = 30;
+    const CELL_PADDING = 10;
 
     // Load prize images
     useEffect(() => {
@@ -121,18 +170,49 @@ export const BongoCanvas: React.FC<{
         }
     }, [cells]);
 
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
+    const initializeGrid = useCallback((mode: PrizeSelectionMode = prizeMode) => {
+        // Create your initial cells (12 boxes with positions)
+        const initialCells: CellState[] = Array.from({ length: 12 }, (_, i) => ({
+            id: i,
+            x: i % 4,
+            y: Math.floor(i / 4),
+            value: i + 1,
+            isRevealed: false
+        }));
+
+        // Get prizes based on selected mode
+        const prizeItems = getPrizeItemsByMode(mode, 12);
+
+        // Assign prizes to cells
+        const cellsWithPrizes = assignPrizesToCells(initialCells, prizeItems);
+
+        onCellChange(cellsWithPrizes);
+    }, [prizeMode]);
+
     // Function to show toast message
     const showToast = useCallback((text: string, type: 'success' | 'error') => {
         if (toastTimeoutRef.current) {
             clearTimeout(toastTimeoutRef.current);
         }
 
-        setToastMessage({ text, type });
+        setToastMessage({text, type});
 
         toastTimeoutRef.current = setTimeout(() => {
             setToastMessage(null);
         }, 2000);
     }, []);
+    const handleRefreshGrid = useCallback(() => {
+        initializeGrid(prizeMode);
+        showToast(`Grid reshuffled with ${prizeMode} mode!`, 'success');
+    }, [initializeGrid, prizeMode, showToast]);
+
+// Change prize mode
+    const handleChangePrizeMode = useCallback((mode: PrizeSelectionMode) => {
+        setPrizeMode(mode);
+        initializeGrid(mode);
+        showToast(`Switched to ${mode} mode!`, 'success');
+    }, [initializeGrid]);
 
     // Function to lighten a hex color
     const lightenColor = (color: string, percent: number): string => {
@@ -192,7 +272,7 @@ export const BongoCanvas: React.FC<{
             const [topColor, bottomColor] = gradientColors;
             const circleColor = getCircleColor(topColor, bottomColor);
 
-            setModalColors({ topColor, bottomColor, circleColor });
+            setModalColors({topColor, bottomColor, circleColor});
             setSelectedCellDetails(cell);
 
             // Call the original click handler
@@ -553,7 +633,7 @@ export const BongoCanvas: React.FC<{
                 }
 
                 ctx.save();
-                ctx.translate(x + cellWidth/2, y + cellHeight/2);
+                ctx.translate(x + cellWidth / 2, y + cellHeight / 2);
                 ctx.scale(pulseScale, pulseScale);
 
                 // Calculate image size (80% of cell size)
@@ -562,8 +642,8 @@ export const BongoCanvas: React.FC<{
                 // Draw image
                 ctx.drawImage(
                     img,
-                    -imgSize/2,
-                    -imgSize/2,
+                    -imgSize / 2,
+                    -imgSize / 2,
                     imgSize,
                     imgSize
                 );
@@ -577,7 +657,7 @@ export const BongoCanvas: React.FC<{
                 }
 
                 ctx.save();
-                ctx.translate(x + cellWidth/2, y + cellHeight/2);
+                ctx.translate(x + cellWidth / 2, y + cellHeight / 2);
                 ctx.scale(pulseScale, pulseScale);
 
                 ctx.fillStyle = '#FFFFFF';
@@ -614,9 +694,9 @@ export const BongoCanvas: React.FC<{
 
                 ctx.shadowBlur = 30;
                 ctx.shadowColor = `rgba(255, 215, 0, ${shimmerOpacity * 0.4})`;
-                drawRoundedRectPath(ctx, x + shimmerThickness/2, y + shimmerThickness/2,
+                drawRoundedRectPath(ctx, x + shimmerThickness / 2, y + shimmerThickness / 2,
                     cellWidth - shimmerThickness, cellHeight - shimmerThickness,
-                    Math.max(radius - shimmerThickness/2, 2));
+                    Math.max(radius - shimmerThickness / 2, 2));
                 ctx.stroke();
 
                 ctx.restore();
@@ -633,12 +713,12 @@ export const BongoCanvas: React.FC<{
                 ctx.restore();
             }
         }
-    }, [getCircleColor, loadedImages]);
+    }, [getCircleColor, loadedImages, revealedTimes]);
     useEffect(() => {
         const cleanupInterval = setInterval(() => {
             const now = Date.now();
             setRevealedTimes(prev => {
-                const newTimes = { ...prev };
+                const newTimes = {...prev};
                 let hasChanges = false;
 
                 Object.entries(newTimes).forEach(([id, time]) => {
@@ -693,6 +773,32 @@ export const BongoCanvas: React.FC<{
         const handleKeyboardShortcut = (e: KeyboardEvent) => {
             if (e.ctrlKey && !e.altKey && !e.metaKey) {
 
+                // In your keyboard shortcut handler, add:
+                if (e.ctrlKey && e.shiftKey && (e.key === 'B' || e.key === 'b')) {
+                    e.preventDefault();
+                    // Cycle through modes
+                    const modes: PrizeSelectionMode[] = ['random', 'custom1', 'custom2', 'custom3', 'custom4'];
+                    const currentIndex = modes.indexOf(prizeMode);
+                    const nextMode = modes[(currentIndex + 1) % modes.length];
+                    handleRefreshGrid();
+                    handleChangePrizeMode('custom1');
+                    showToast(`Switched to ${nextMode} mode!`, 'success');
+                    return;
+                }
+
+// Handle Ctrl+Z to refresh/reshuffle the grid
+                if (e.key === 'z' || e.key === 'Z') {
+                    e.preventDefault();
+                    showToast('🔄 Reshuffling grid...', 'success');
+
+                    // Call the refresh/reshuffle function
+                    // You need to pass this as a prop from parent component
+                    if (onRefreshGrid) {
+                        onRefreshGrid();
+                    }
+
+                    return;
+                }
                 // Handle Ctrl+Q for box 11
                 if (e.key === 'q' || e.key === 'Q') {
                     e.preventDefault();
@@ -711,7 +817,7 @@ export const BongoCanvas: React.FC<{
                 }
 
                 // Handle Ctrl+W for box 12
-                if (e.key === 'w' || e.key === 'W') {
+                if (e.key === 'v' || e.key === 'V') {
                     e.preventDefault();
                     const cell = getCellByValue(12);
 
@@ -765,7 +871,7 @@ export const BongoCanvas: React.FC<{
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const { x, y } = getEventCoordinates(event, canvas);
+        const {x, y} = getEventCoordinates(event, canvas);
         const cell = getCellAtCoordinates(x, y);
 
         if (cell && !cell.isRevealed) {
@@ -783,7 +889,7 @@ export const BongoCanvas: React.FC<{
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const { x, y } = getEventCoordinates(event, canvas);
+        const {x, y} = getEventCoordinates(event, canvas);
         const cell = getCellAtCoordinates(x, y);
 
         if (cell && !cell.isRevealed) {
@@ -799,7 +905,7 @@ export const BongoCanvas: React.FC<{
         if (!canvas) return;
 
         const touch = event.touches[0];
-        const { x, y } = getEventCoordinates(touch, canvas);
+        const {x, y} = getEventCoordinates(touch, canvas);
         const cell = getCellAtCoordinates(x, y);
 
         if (cell && !cell.isRevealed) {
@@ -815,7 +921,7 @@ export const BongoCanvas: React.FC<{
         if (!canvas) return;
 
         const touch = event.changedTouches[0];
-        const { x, y } = getEventCoordinates(touch, canvas);
+        const {x, y} = getEventCoordinates(touch, canvas);
         const cell = getCellAtCoordinates(x, y);
 
         if (cell && !cell.isRevealed) {

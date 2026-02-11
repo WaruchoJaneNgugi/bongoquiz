@@ -96,30 +96,13 @@ export const BongoMain: FC = () => {
     }, []);
 
     return (
-        <>
-            <BongoCanvas
+           <BongoCanvas
+               onCellChange={setCells}
                 cells={cells}
                 onCellClick={handleCellClick}
+                onRefreshGrid={reshufflePrizes}
             />
 
-            {/* Optional: Add a button to reshuffle prizes */}
-            <button
-                onClick={reshufflePrizes}
-                style={{
-                    position: 'fixed',
-                    bottom: '20px',
-                    right: '20px',
-                    padding: '10px 20px',
-                    background: 'linear-gradient(90deg, #4ECDC4, #06D6A0)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50px',
-                    cursor: 'pointer',
-                    zIndex: 100
-                }}
-            >
-                Reshuffle Prizes
-            </button>
-        </>
+
     );
 };
