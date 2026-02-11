@@ -2,7 +2,7 @@
 import React, {useState, useCallback, useEffect, useRef} from 'react';
 import '../assets/style.css';
 import '../assets/modalOverlaybtn.css'
-import {type CellState, PRIZE_IMAGES, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
+import {type CellState, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
 
 // Modal Component for showing prize details
 const PrizeModal: React.FC<{
@@ -11,12 +11,9 @@ const PrizeModal: React.FC<{
     cell: CellState | null;
     cellColors: { topColor: string; bottomColor: string; circleColor: string; };
 }> = ({ isOpen, onClose, cell, cellColors }) => {
-    if (!isOpen || !cell) return null;
+    if (!isOpen || !cell || !cell.prizeItem) return null;
 
-    const prizeIndex = cell.value - 1;
-    const prizeEmoji = prizeIndex >= 0 && prizeIndex < PRIZE_IMAGES.length
-        ? PRIZE_IMAGES[prizeIndex]
-        : '🎁';
+    const prizeItem = cell.prizeItem;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -26,15 +23,12 @@ const PrizeModal: React.FC<{
                 </button>
 
                 <div className="modal-header">
-                    <h2 className="modal-title">Congratulations!</h2>
-                    <p className="modal-subtitle">You revealed:</p>
                     <div
                         className="modal-cell-preview"
                         style={{
                             background: `linear-gradient(to bottom, ${cellColors.topColor}, ${cellColors.bottomColor})`,
                         }}
                     >
-
                         <div
                             className="modal-circle"
                             style={{ backgroundColor: cellColors.circleColor }}
@@ -47,11 +41,17 @@ const PrizeModal: React.FC<{
 
                 <div className="modal-body">
                     <div className="prize-display">
-                        <div className="prize-emoji">{prizeEmoji}</div>
-                        <h3 className="prize-title">Prize #{cell.value}</h3>
-                        <p className="prize-description">
-                            This is an amazing prize! You've won something special.
-                        </p>
+                        <div className="prize-image-container">
+                            <img
+                                src={prizeItem.img}
+                                alt={prizeItem.name}
+                                className="prize-image"
+                            />
+                        </div>
+                        <h3 className="prize-title">{prizeItem.name}</h3>
+                        {/*<p className="prize-description">*/}
+                        {/*    {getPrizeDescription(prizeItem.name)}*/}
+                        {/*</p>*/}
                     </div>
                 </div>
 
@@ -64,6 +64,31 @@ const PrizeModal: React.FC<{
         </div>
     );
 };
+
+// Helper function to get prize descriptions
+// const getPrizeDescription = (prizeName: string): string => {
+//     const descriptions: Record<string, string> = {
+//         "Bonus Time": "Gain extra time to answer questions!",
+//         "Borrowed Brain": "Use someone else's knowledge for one round!",
+//         "Disqualified": "Oops! This one's not good...",
+//         "Double Or Nothing": "Risk it all for double points!",
+//         "Double Points": "Earn double points on your next correct answer!",
+//         "Freeze Frame": "Freeze the timer for a moment!",
+//         "Insurance": "Protect your points from being stolen!",
+//         "Mirror Effect": "Reflect the next penalty onto another player!",
+//         "No Penalty": "Avoid penalties for one round!",
+//         "Point Chance Brain": "Test your luck for bonus points!",
+//         "Point Gamble": "Gamble your points for a chance to double them!",
+//         "Question Swap": "Swap a question with another player!",
+//         "Second Chance": "Get another attempt at a failed question!",
+//         "Steal A Point": "Steal a point from another player!",
+//         "Sudden Death Disqualified": "Immediate elimination if used!",
+//         "Swap Fate": "Swap positions with another player!",
+//         "Time Tax": "Other players lose time, you gain some!"
+//     };
+//
+//     return descriptions[prizeName] || "This is an amazing prize! You've won something special.";
+// };
 
 // Canvas Component
 export const BongoCanvas: React.FC<{
@@ -82,6 +107,43 @@ export const BongoCanvas: React.FC<{
         circleColor: '#FFFFFF'
     });
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Store loaded prize images
+    const [loadedImages, setLoadedImages] = useState<Record<number, HTMLImageElement>>({});
+
+    // Load prize images
+    useEffect(() => {
+        const loadImages = async () => {
+            const imagePromises = cells.map(cell => {
+                return new Promise<void>((resolve) => {
+                    if (!cell.prizeItem) {
+                        resolve();
+                        return;
+                    }
+
+                    const img = new Image();
+                    img.src = cell.prizeItem.img;
+                    img.onload = () => {
+                        setLoadedImages(prev => ({
+                            ...prev,
+                            [cell.id]: img
+                        }));
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        console.error(`Failed to load image: ${cell.prizeItem?.img}`);
+                        resolve();
+                    };
+                });
+            });
+
+            await Promise.all(imagePromises);
+        };
+
+        if (cells.length > 0) {
+            loadImages();
+        }
+    }, [cells]);
 
     // Function to lighten a hex color
     const lightenColor = (color: string, percent: number): string => {
@@ -146,7 +208,7 @@ export const BongoCanvas: React.FC<{
                 setIsModalOpen(true);
             }, 300);
         }
-    }, [cells, getCircleColor, onCellClick]);
+    }, [cells, onCellClick]);
 
     // Close modal
     const handleCloseModal = useCallback(() => {
@@ -268,7 +330,7 @@ export const BongoCanvas: React.FC<{
         ctx.closePath();
     };
 
-    // Draw gradient cell
+    // Draw gradient cell - updated to use images instead of emojis
     const drawCell = useCallback((
         ctx: CanvasRenderingContext2D,
         cell: CellState,
@@ -383,25 +445,27 @@ export const BongoCanvas: React.FC<{
             ctx.restore();
         }
 
-        // Draw cell number
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.7)';
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetY = 5;
+        // Draw cell number (only if not revealed)
+        if (!isRevealed) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.7)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 5;
 
-        ctx.fillStyle = '#FFFFFF';
-        const fontSize = Math.max(16, cellHeight * 0.32);
-        ctx.font = `800 ${fontSize}px "Montserrat", Arial, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(cell.value.toString(), x + cellWidth / 2, y + cellHeight / 2);
+            ctx.fillStyle = '#FFFFFF';
+            const fontSize = Math.max(16, cellHeight * 0.32);
+            ctx.font = `800 ${fontSize}px "Montserrat", Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(cell.value.toString(), x + cellWidth / 2, y + cellHeight / 2);
 
-        ctx.shadowColor = 'rgba(255,255,255,0.35)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetY = -2;
-        ctx.fillText(cell.value.toString(), x + cellWidth / 2, y + cellHeight / 2);
+            ctx.shadowColor = 'rgba(255,255,255,0.35)';
+            ctx.shadowBlur = 3;
+            ctx.shadowOffsetY = -2;
+            ctx.fillText(cell.value.toString(), x + cellWidth / 2, y + cellHeight / 2);
 
-        ctx.restore();
+            ctx.restore();
+        }
 
         // If revealed, show prize with overlay
         if (isRevealed) {
@@ -411,24 +475,45 @@ export const BongoCanvas: React.FC<{
             ctx.fill();
             ctx.restore();
 
-            const prizeIndex = cell.value - 1;
-            if (prizeIndex >= 0 && prizeIndex < PRIZE_IMAGES.length) {
-                const emoji = PRIZE_IMAGES[prizeIndex];
+            // If we have a loaded prize image, show it
+            if (cell.prizeItem && loadedImages[cell.id]) {
+                const img = loadedImages[cell.id];
+                const pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
 
+                ctx.save();
+                ctx.translate(x + cellWidth/2, y + cellHeight/2);
+                ctx.scale(pulseScale, pulseScale);
+
+                // Calculate image size (80% of cell size)
+                const imgSize = Math.min(cellWidth, cellHeight) * 0.8;
+
+                // Draw image
+                ctx.drawImage(
+                    img,
+                    -imgSize/2,
+                    -imgSize/2,
+                    imgSize,
+                    imgSize
+                );
+
+                ctx.restore();
+            } else if (cell.prizeItem) {
+                // Fallback: Show the prize name if image hasn't loaded yet
                 const pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
                 ctx.save();
                 ctx.translate(x + cellWidth/2, y + cellHeight/2);
                 ctx.scale(pulseScale, pulseScale);
 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = `bold ${cellHeight * 0.4}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+                ctx.font = `bold ${cellHeight * 0.2}px Arial, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(emoji, 0, 0);
+                ctx.fillText(cell.prizeItem.name, 0, 0);
 
                 ctx.restore();
             }
 
+            // Shimmering border effect for revealed cells
             ctx.save();
             const shimmerSpeed = 0.008;
             const shimmerThickness = 3;
@@ -459,7 +544,7 @@ export const BongoCanvas: React.FC<{
 
             ctx.restore();
         }
-    }, []);
+    }, [loadedImages]);
 
     // Animation loop
     useEffect(() => {

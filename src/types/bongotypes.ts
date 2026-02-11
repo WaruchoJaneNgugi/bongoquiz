@@ -1,4 +1,4 @@
-export type GameStatus = 'idle' | 'playing' | 'revealing' | 'completed' | 'waiting';
+// export type GameStatus = 'idle' | 'playing' | 'revealing' | 'completed' | 'waiting';
 
 export interface CellState {
     id: number;
@@ -6,33 +6,89 @@ export interface CellState {
     y: number;
     value: number;
     isRevealed: boolean;
-    revealedBy?: string; // Player ID who revealed it
+    revealedBy?: string;
     revealedAt?: Date;
+    prizeItem?: PrizeItem; // Add prize item to cell
 }
 
-export interface Player {
-    id: string;
-    name?: string;
-    color?: string;
-    joinedAt: Date;
+// export interface Player {
+//     id: string;
+//     name?: string;
+//     color?: string;
+//     joinedAt: Date;
+// }
+
+export interface PrizeItem {
+    id: number;
+    name: string;
+    img: string;
 }
 
-export interface GameState {
-    id: string;
-    cells: CellState[];
-    players: Player[];
-    gameStatus: GameStatus;
-    createdAt: Date;
-    hostId: string;
-}
+// Import all the prize images
+import BonusTime from "../assets/Items/BonusTime.png";
+import BorrowedBrain from "../assets/Items/BorrowedBrain.png";
+import Disqualified from "../assets/Items/Disqualified.png";
+import DoubleOrNothing from "../assets/Items/DoubleorNothing.png";
+import DoublePoints from "../assets/Items/DoublePoints2.png";
+import FreezeFrame from "../assets/Items/FreezeFrame.png";
+import Insurance from "../assets/Items/insurance.png";
+import MirrorEffect from "../assets/Items/MirrorEffect.png";
+import NoPenalty from "../assets/Items/nopenalty.png";
+import PointChanceBrain from "../assets/Items/pointChanceBrain.png";
+import PointGamble from "../assets/Items/PointGamble.png";
+import QuestionSwap from "../assets/Items/questionswap.png";
+import SecondChance from "../assets/Items/secondchance.png";
+import StealAPoint from "../assets/Items/StealAPoint.png";
+import SuddenDeathDisqualified from "../assets/Items/SuddenDeathDisqualified.png";
+import SwapFate from "../assets/Items/SwapFate.png";
+import TimeTax from "../assets/Items/TimeTax.png";
 
-// Keep your existing PRIZE_IMAGES and CELL_GRADIENT_COLORS arrays
-// Prize emojis
-export const PRIZE_IMAGES = [
-    '🏆', '🎮', '🎯', '🎁', '💰', '💎',
-    '🌟', '⚡', '🔥', '💫', '🌈', '✨'
+// Create prize items with IDs, names, and images
+export const PRIZE_ITEMS: PrizeItem[] = [
+    { id: 1, name: "Bonus Time", img: BonusTime },
+    { id: 2, name: "Borrowed Brain", img: BorrowedBrain },
+    { id: 3, name: "Disqualified", img: Disqualified },
+    { id: 4, name: "Double Or Nothing", img: DoubleOrNothing },
+    { id: 5, name: "Double Points", img: DoublePoints },
+    { id: 6, name: "Freeze Frame", img: FreezeFrame },
+    { id: 7, name: "Insurance", img: Insurance },
+    { id: 8, name: "Mirror Effect", img: MirrorEffect },
+    { id: 9, name: "No Penalty", img: NoPenalty },
+    { id: 10, name: "Point Chance Brain", img: PointChanceBrain },
+    { id: 11, name: "Point Gamble", img: PointGamble },
+    { id: 12, name: "Question Swap", img: QuestionSwap },
+    { id: 13, name: "Second Chance", img: SecondChance },
+    { id: 14, name: "Steal A Point", img: StealAPoint },
+    { id: 15, name: "Sudden Death Disqualified", img: SuddenDeathDisqualified },
+    { id: 16, name: "Swap Fate", img: SwapFate },
+    { id: 17, name: "Time Tax", img: TimeTax }
 ];
 
+// Function to get random prize items (12 items for 12 boxes)
+export const getRandomPrizeItems = (count: number = 12): PrizeItem[] => {
+    // Create a copy of all prize items
+    const allItems = [...PRIZE_ITEMS];
+
+    // Shuffle the array using Fisher-Yates algorithm
+    for (let i = allItems.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allItems[i], allItems[j]] = [allItems[j], allItems[i]];
+    }
+
+    // Take the first 'count' items
+    return allItems.slice(0, count);
+};
+
+// Function to assign prize items to cells
+export const assignPrizesToCells = (cells: CellState[], prizeItems: PrizeItem[]): CellState[] => {
+    // Ensure we have enough prizes for cells
+    const items = prizeItems.slice(0, cells.length);
+
+    return cells.map((cell, index) => ({
+        ...cell,
+        prizeItem: items[index]
+    }));
+};
 // Simple white color for all boxes (optional - you can keep colors for hover effects)export
 export const CELL_SOLID_COLORS = [
     '#F44336', // 1 Red

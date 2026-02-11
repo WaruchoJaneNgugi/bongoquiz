@@ -238,3 +238,40 @@
         font-size: 24px;
     }
 }
+
+/* Add these styles for prize images */
+.prize-image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.prize-image {
+    max-width: 400px;
+    max-height: 450px;
+    object-fit: contain;
+    filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+/* Optional: Remove or modify the prize-emoji styles since we're using images */
+.prize-emoji {
+    display: none; /* Hide emoji if still present */
+}

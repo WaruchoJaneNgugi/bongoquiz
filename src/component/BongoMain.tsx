@@ -1,18 +1,12 @@
-// BongoMain.tsx - Fixed Version
+// BongoMain.tsx - Updated with randomized prizes
 import { type FC, useCallback, useEffect, useState, useRef } from "react";
-import { type CellState} from "../types/bongotypes.ts";
-// import socketService from "../service/socketService.ts";
+import { type CellState, type PrizeItem, getRandomPrizeItems, assignPrizesToCells } from "../types/bongotypes.ts";
 import '../assets/style.css'
 import { BongoCanvas} from "./BongoCanvas.tsx";
 
 export const BongoMain: FC = () => {
     const [cells, setCells] = useState<CellState[]>([]);
-    // const [selectedCell, setSelectedCell] = useState<number | null>(null);
-    // const [roomId, setRoomId] = useState<string>('');
-    // const [isConnected, setIsConnected] = useState(false);
-    // const socketRef = useRef<any>(null);
-
-    // Store cells in ref for use in callbacks
+    const [prizeItems, setPrizeItems] = useState<PrizeItem[]>([]);
     const cellsRef = useRef<CellState[]>([]);
 
     // Update refs when state changes
@@ -20,11 +14,15 @@ export const BongoMain: FC = () => {
         cellsRef.current = cells;
     }, [cells]);
 
-    // Initialize game grid
+    // Initialize game grid with randomized prizes
     const initializeCells = useCallback(() => {
         const gridCols = 4;
         const gridRows = 3;
         const newCells: CellState[] = [];
+
+        // Get random prize items
+        const randomPrizes = getRandomPrizeItems(12);
+        setPrizeItems(randomPrizes);
 
         for (let y = 0; y < gridRows; y++) {
             for (let x = 0; x < gridCols; x++) {
@@ -37,6 +35,7 @@ export const BongoMain: FC = () => {
                     isRevealed: false,
                     x,
                     y,
+                    prizeItem: randomPrizes[id] // Assign prize item to cell
                 });
             }
         }
@@ -44,8 +43,7 @@ export const BongoMain: FC = () => {
         return newCells;
     }, []);
 
-
-    // // Initialize cells on first render
+    // Initialize cells on first render
     useEffect(() => {
         const initialCells = initializeCells();
         setCells(initialCells);
@@ -53,11 +51,8 @@ export const BongoMain: FC = () => {
     }, [initializeCells]);
 
     const revealCell = useCallback((cellId: number, isLocalClick = true) => {
-        // console.log('🔍 revealCell called with:', { cellId, isLocalClick });
-
         const currentCells = cellsRef.current;
 
-        // Check if cell exists and isn't already revealed
         if (!currentCells[cellId]) {
             console.error(`Cell ${cellId} not found`);
             return;
@@ -70,7 +65,6 @@ export const BongoMain: FC = () => {
 
         console.log(`✅ Revealing cell ${cellId}, isLocalClick: ${isLocalClick}`);
 
-        // Update state immediately for instant feedback
         setCells(prev => {
             const newCells = [...prev];
             if (newCells[cellId]) {
@@ -83,10 +77,23 @@ export const BongoMain: FC = () => {
         });
 
     }, []);
+
     const handleCellClick = useCallback((id: number) => {
         console.log(`🎯 Cell clicked: ${id}`);
         revealCell(id, true);
     }, [revealCell]);
+
+    // Function to reshuffle prizes (for testing or game reset)
+    const reshufflePrizes = useCallback(() => {
+        const newPrizeItems = getRandomPrizeItems(12);
+        setPrizeItems(newPrizeItems);
+
+        setCells(prev => prev.map((cell, index) => ({
+            ...cell,
+            isRevealed: false, // Reset revealed state
+            prizeItem: newPrizeItems[index]
+        })));
+    }, []);
 
     return (
         <>
@@ -94,6 +101,25 @@ export const BongoMain: FC = () => {
                 cells={cells}
                 onCellClick={handleCellClick}
             />
+
+            {/* Optional: Add a button to reshuffle prizes */}
+            <button
+                onClick={reshufflePrizes}
+                style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    padding: '10px 20px',
+                    background: 'linear-gradient(90deg, #4ECDC4, #06D6A0)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50px',
+                    cursor: 'pointer',
+                    zIndex: 100
+                }}
+            >
+                Reshuffle Prizes
+            </button>
         </>
     );
 };
