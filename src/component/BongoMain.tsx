@@ -1,12 +1,12 @@
 // BongoMain.tsx - Updated with randomized prizes
 import { type FC, useCallback, useEffect, useState, useRef } from "react";
-import { type CellState, type PrizeItem, getRandomPrizeItems, assignPrizesToCells } from "../types/bongotypes.ts";
+import { type CellState, getRandomPrizeItems } from "../types/bongotypes.ts";
 import '../assets/style.css'
 import { BongoCanvas} from "./BongoCanvas.tsx";
 
 export const BongoMain: FC = () => {
     const [cells, setCells] = useState<CellState[]>([]);
-    const [prizeItems, setPrizeItems] = useState<PrizeItem[]>([]);
+    // const [prizeItems, setPrizeItems] = useState<PrizeItem[]>([]);
     const cellsRef = useRef<CellState[]>([]);
 
     // Update refs when state changes
@@ -22,7 +22,7 @@ export const BongoMain: FC = () => {
 
         // Get random prize items
         const randomPrizes = getRandomPrizeItems(12);
-        setPrizeItems(randomPrizes);
+        // setPrizeItems(randomPrizes);
 
         for (let y = 0; y < gridRows; y++) {
             for (let x = 0; x < gridCols; x++) {
@@ -86,7 +86,7 @@ export const BongoMain: FC = () => {
     // Function to reshuffle prizes (for testing or game reset)
     const reshufflePrizes = useCallback(() => {
         const newPrizeItems = getRandomPrizeItems(12);
-        setPrizeItems(newPrizeItems);
+        // setPrizeItems(newPrizeItems);
 
         setCells(prev => prev.map((cell, index) => ({
             ...cell,
