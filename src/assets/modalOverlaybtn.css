@@ -117,7 +117,7 @@
 .modal-subtitle {
     color: rgba(255, 255, 255, 0.8);
     font-size: 16px;
-    margin: 0;
+    margin-bottom: 5px;
 }
 
 .modal-body {

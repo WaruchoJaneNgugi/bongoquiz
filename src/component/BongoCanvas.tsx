@@ -1,8 +1,8 @@
 // BongoCanvas.tsx - With Gradient Colors, Number Circle Background, and Modal Overlay
-import React, {useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import '../assets/style.css';
 import '../assets/modalOverlaybtn.css'
-import {type CellState, type GameStatus, PRIZE_IMAGES, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
+import {type CellState, PRIZE_IMAGES, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
 
 // Modal Component for showing prize details
 const PrizeModal: React.FC<{
@@ -26,12 +26,15 @@ const PrizeModal: React.FC<{
                 </button>
 
                 <div className="modal-header">
+                    <h2 className="modal-title">Congratulations!</h2>
+                    <p className="modal-subtitle">You revealed:</p>
                     <div
                         className="modal-cell-preview"
                         style={{
                             background: `linear-gradient(to bottom, ${cellColors.topColor}, ${cellColors.bottomColor})`,
                         }}
                     >
+
                         <div
                             className="modal-circle"
                             style={{ backgroundColor: cellColors.circleColor }}
@@ -39,8 +42,7 @@ const PrizeModal: React.FC<{
                             <span className="modal-cell-number">{cell.value}</span>
                         </div>
                     </div>
-                    <h2 className="modal-title">Congratulations!</h2>
-                    <p className="modal-subtitle">You revealed:</p>
+
                 </div>
 
                 <div className="modal-body">
@@ -53,11 +55,11 @@ const PrizeModal: React.FC<{
                     </div>
                 </div>
 
-                <div className="modal-footer">
-                    <button className="modal-action-btn" onClick={onClose}>
-                        Continue Playing
-                    </button>
-                </div>
+                {/*<div className="modal-footer">*/}
+                {/*    <button className="modal-action-btn" onClick={onClose}>*/}
+                {/*        Continue Playing*/}
+                {/*    </button>*/}
+                {/*</div>*/}
             </div>
         </div>
     );
@@ -66,11 +68,8 @@ const PrizeModal: React.FC<{
 // Canvas Component
 export const BongoCanvas: React.FC<{
     cells: CellState[];
-    gameStatus: GameStatus;
     onCellClick: (id: number) => void;
-    selectedCell: number | null;
-    OnSetSelectedCell: Dispatch<SetStateAction<number|null>>
-}> = ({ cells, onCellClick, OnSetSelectedCell }) => {
+}> = ({ cells, onCellClick }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
@@ -141,14 +140,13 @@ export const BongoCanvas: React.FC<{
 
             // Call the original click handler
             onCellClick(cellId);
-            OnSetSelectedCell(cellId);
 
             // Open modal after a short delay for animation
             setTimeout(() => {
                 setIsModalOpen(true);
             }, 300);
         }
-    }, [cells, onCellClick, OnSetSelectedCell]);
+    }, [cells, getCircleColor, onCellClick]);
 
     // Close modal
     const handleCloseModal = useCallback(() => {
