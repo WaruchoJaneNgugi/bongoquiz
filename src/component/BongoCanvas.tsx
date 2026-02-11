@@ -476,52 +476,46 @@ export const BongoCanvas: React.FC<{
     // }, []);
     // Get event coordinates helper function - IMPROVED FOR ALL DEVICES
     // Fixed getEventCoordinates function with proper TypeScript types
+    // Type guard to check if it's a TouchEvent
+    const isTouchEvent = (event: any): event is TouchEvent => {
+        return window.TouchEvent && event instanceof TouchEvent;
+    };
+
+// Type guard to check if it's a Touch object
+    const isTouch = (event: any): event is Touch => {
+        return event && typeof event === 'object' && 'clientX' in event && 'clientY' in event && !('button' in event);
+    };
+
     const getEventCoordinates = useCallback((event: MouseEvent | TouchEvent | Touch, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
 
-        // Get the canvas buffer size
         const bufferWidth = canvas.width;
         const bufferHeight = canvas.height;
-
-        // Get the actual CSS size
         const cssWidth = rect.width;
         const cssHeight = rect.height;
 
-        // Calculate scale factors more precisely
         const scaleX = bufferWidth / cssWidth;
         const scaleY = bufferHeight / cssHeight;
 
         let clientX: number, clientY: number;
 
-        // Check if it's a TouchEvent
-        if (window.TouchEvent && event instanceof TouchEvent) {
+        if (isTouchEvent(event)) {
             // Handle TouchEvent
-            if (event.touches.length > 0) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-            } else {
-                // Fallback if no touches
-                clientX = 0;
-                clientY = 0;
-            }
-        }
-        // Check if it's a Touch object (from touchstart/touchend)
-        else if ('clientX' in event && 'clientY' in event) {
-            // Handle Touch object or MouseEvent
-            clientX = (event as Touch).clientX;
-            clientY = (event as Touch).clientY;
-        }
-        else {
+            clientX = event.touches[0]?.clientX ?? 0;
+            clientY = event.touches[0]?.clientY ?? 0;
+        } else if (isTouch(event)) {
+            // Handle Touch object
+            clientX = event.clientX;
+            clientY = event.clientY;
+        } else {
             // Handle MouseEvent
-            clientX = (event as MouseEvent).clientX;
-            clientY = (event as MouseEvent).clientY;
+            clientX = event.clientX;
+            clientY = event.clientY;
         }
 
-        // Calculate coordinates relative to canvas with precise scaling
         let x = (clientX - rect.left) * scaleX;
         let y = (clientY - rect.top) * scaleY;
 
-        // Add small epsilon to handle floating point errors
         x = Math.max(0, Math.min(x, bufferWidth - 0.1));
         y = Math.max(0, Math.min(y, bufferHeight - 0.1));
 
