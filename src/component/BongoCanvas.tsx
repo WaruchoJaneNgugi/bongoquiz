@@ -1,7 +1,67 @@
-// BongoCanvas.tsx - With Gradient Colors and Number Circle Background
+// BongoCanvas.tsx - With Gradient Colors, Number Circle Background, and Modal Overlay
 import React, {useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction} from 'react';
 import '../assets/style.css';
+import '../assets/modalOverlaybtn.css'
 import {type CellState, type GameStatus, PRIZE_IMAGES, CELL_GRADIENT_COLORS} from "../types/bongotypes.ts";
+
+// Modal Component for showing prize details
+const PrizeModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    cell: CellState | null;
+    cellColors: { topColor: string; bottomColor: string; circleColor: string; };
+}> = ({ isOpen, onClose, cell, cellColors }) => {
+    if (!isOpen || !cell) return null;
+
+    const prizeIndex = cell.value - 1;
+    const prizeEmoji = prizeIndex >= 0 && prizeIndex < PRIZE_IMAGES.length
+        ? PRIZE_IMAGES[prizeIndex]
+        : '🎁';
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <button className="modal-close-btn" onClick={onClose}>
+                    ✕
+                </button>
+
+                <div className="modal-header">
+                    <div
+                        className="modal-cell-preview"
+                        style={{
+                            background: `linear-gradient(to bottom, ${cellColors.topColor}, ${cellColors.bottomColor})`,
+                        }}
+                    >
+                        <div
+                            className="modal-circle"
+                            style={{ backgroundColor: cellColors.circleColor }}
+                        >
+                            <span className="modal-cell-number">{cell.value}</span>
+                        </div>
+                    </div>
+                    <h2 className="modal-title">Congratulations!</h2>
+                    <p className="modal-subtitle">You revealed:</p>
+                </div>
+
+                <div className="modal-body">
+                    <div className="prize-display">
+                        <div className="prize-emoji">{prizeEmoji}</div>
+                        <h3 className="prize-title">Prize #{cell.value}</h3>
+                        <p className="prize-description">
+                            This is an amazing prize! You've won something special.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="modal-footer">
+                    <button className="modal-action-btn" onClick={onClose}>
+                        Continue Playing
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Canvas Component
 export const BongoCanvas: React.FC<{
@@ -9,14 +69,20 @@ export const BongoCanvas: React.FC<{
     gameStatus: GameStatus;
     onCellClick: (id: number) => void;
     selectedCell: number | null;
-    OnSetSelectedCell:Dispatch<SetStateAction<number|null>>
+    OnSetSelectedCell: Dispatch<SetStateAction<number|null>>
 }> = ({ cells, onCellClick, OnSetSelectedCell }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const animationRef = useRef<number>(0);
     const hoveredCellRef = useRef<number | null>(null);
-    // const timeRef = useRef<number>(0);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 700 });
+    const [selectedCellDetails, setSelectedCellDetails] = useState<CellState | null>(null);
+    const [modalColors, setModalColors] = useState<{ topColor: string; bottomColor: string; circleColor: string; }>({
+        topColor: '#FFFFFF',
+        bottomColor: '#F0F0F0',
+        circleColor: '#FFFFFF'
+    });
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Function to lighten a hex color
     const lightenColor = (color: string, percent: number): string => {
@@ -39,7 +105,6 @@ export const BongoCanvas: React.FC<{
 
     // Function to get circle color from gradient colors
     const getCircleColor = (topColor: string, bottomColor: string): string => {
-        // Parse hex colors to RGB
         const hexToRgb = (hex: string): [number, number, number] => {
             const r = parseInt(hex.slice(1, 3), 16);
             const g = parseInt(hex.slice(3, 5), 16);
@@ -51,19 +116,47 @@ export const BongoCanvas: React.FC<{
             return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
         };
 
-        // Get average of top and bottom colors
         const [r1, g1, b1] = hexToRgb(topColor);
         const [r2, g2, b2] = hexToRgb(bottomColor);
 
-        // Calculate average RGB
         const avgR = Math.round((r1 + r2) / 2);
         const avgG = Math.round((g1 + g2) / 2);
         const avgB = Math.round((b1 + b2) / 2);
 
-        // Convert back to hex and lighten it
         const avgColor = rgbToHex(avgR, avgG, avgB);
-        return lightenColor(avgColor, 25); // Lighten by 25%
+        return lightenColor(avgColor, 25);
     };
+
+    // Handle cell click to open modal
+    const handleCellClick = useCallback((cellId: number) => {
+        const cell = cells.find(c => c.id === cellId);
+        if (cell && !cell.isRevealed) {
+            // Get cell colors
+            const gradientColors = CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length] || ['#FFFFFF', '#F0F0F0'];
+            const [topColor, bottomColor] = gradientColors;
+            const circleColor = getCircleColor(topColor, bottomColor);
+
+            setModalColors({ topColor, bottomColor, circleColor });
+            setSelectedCellDetails(cell);
+
+            // Call the original click handler
+            onCellClick(cellId);
+            OnSetSelectedCell(cellId);
+
+            // Open modal after a short delay for animation
+            setTimeout(() => {
+                setIsModalOpen(true);
+            }, 300);
+        }
+    }, [cells, onCellClick, OnSetSelectedCell]);
+
+    // Close modal
+    const handleCloseModal = useCallback(() => {
+        setIsModalOpen(false);
+        setTimeout(() => {
+            setSelectedCellDetails(null);
+        }, 300);
+    }, []);
 
     // Update canvas size based on container
     useEffect(() => {
@@ -73,43 +166,33 @@ export const BongoCanvas: React.FC<{
                 const containerWidth = container.clientWidth;
                 const containerHeight = container.clientHeight;
 
-                // Grid configuration
                 const gridCols = 4;
                 const gridRows = 3;
 
-                // Use minimal padding to maximize cell size
-                const horizontalPadding = 20; // Reduced from 40
-                const verticalPadding = 20; // Reduced from 40
+                const horizontalPadding = 20;
+                const verticalPadding = 20;
                 const cellPadding = 15;
-                const titleHeight = 0; // Set to 0 since we're not showing title
+                const titleHeight = 0;
 
-                // Calculate maximum available space
                 const maxAvailableWidth = containerWidth - (horizontalPadding * 2) - (cellPadding * (gridCols - 1));
                 const maxAvailableHeight = containerHeight - (verticalPadding * 2) - (cellPadding * (gridRows - 1)) - titleHeight;
 
-                // Calculate cell size based on available space
                 const cellWidthFromWidth = maxAvailableWidth / gridCols;
                 const cellHeightFromHeight = maxAvailableHeight / gridRows;
 
-                // Use the smaller dimension to ensure cells fit both width and height
                 const cellSize = Math.min(cellWidthFromWidth, cellHeightFromHeight);
 
-                // If height is limiting factor, adjust width to maintain aspect ratio
                 let finalCellWidth = cellSize;
                 let finalCellHeight = cellSize;
 
-                // Check which dimension is limiting
                 if (cellHeightFromHeight < cellWidthFromWidth) {
-                    // Height is limiting - we need to adjust cell size to fill height
                     finalCellHeight = cellHeightFromHeight;
                     finalCellWidth = Math.min(finalCellHeight, cellWidthFromWidth);
                 } else {
-                    // Width is limiting or equal
                     finalCellWidth = cellSize;
                     finalCellHeight = finalCellWidth;
                 }
 
-                // Calculate total canvas dimensions
                 const totalWidth = (finalCellWidth * gridCols) + (cellPadding * (gridCols - 1)) + (horizontalPadding * 2);
                 const totalHeight = (finalCellHeight * gridRows) + (cellPadding * (gridRows - 1)) + (verticalPadding * 2) + titleHeight;
 
@@ -118,7 +201,6 @@ export const BongoCanvas: React.FC<{
                     height: Math.min(totalHeight, containerHeight)
                 });
 
-                // Set canvas resolution
                 const canvas = canvasRef.current;
                 const dpr = window.devicePixelRatio || 1;
                 canvas.width = totalWidth * dpr;
@@ -144,20 +226,17 @@ export const BongoCanvas: React.FC<{
         const gridCols = 4;
         const gridRows = 3;
 
-        // Use the same padding values as in updateCanvasSize
         const horizontalPadding = 20;
         const verticalPadding = 20;
         const cellPadding = 15;
         const titleHeight = 0;
 
-        // Calculate cell size based on canvas dimensions
         const availableWidth = canvasSize.width - (horizontalPadding * 2) - (cellPadding * (gridCols - 1));
         const availableHeight = canvasSize.height - (verticalPadding * 2) - (cellPadding * (gridRows - 1)) - titleHeight;
 
         const cellWidth = availableWidth / gridCols;
         const cellHeight = availableHeight / gridRows;
 
-        // Use square cells - take the smaller dimension to ensure they fit
         const cellSize = Math.min(cellWidth, cellHeight);
 
         return {
@@ -203,18 +282,15 @@ export const BongoCanvas: React.FC<{
         titleHeight: number,
         time: number
     ) => {
-        // Calculate cell position
         const x = horizontalPadding + (cell.x * (cellWidth + cellPadding));
         const y = verticalPadding + titleHeight + (cell.y * (cellHeight + cellPadding));
 
         const isHovered = hoveredCellRef.current === cell.id;
         const isRevealed = cell.isRevealed;
 
-        // Get gradient colors for this cell
         const gradientColors = CELL_GRADIENT_COLORS[cell.id % CELL_GRADIENT_COLORS.length] || ['#FFFFFF', '#F0F0F0'];
         const [topColor, bottomColor] = gradientColors;
 
-        // Get circle color (lighter shade of the cell's background)
         const circleColor = getCircleColor(topColor, bottomColor);
 
         const radius = 15;
@@ -283,12 +359,10 @@ export const BongoCanvas: React.FC<{
         if (!isRevealed) {
             ctx.save();
 
-            // Circle position and size
             const circleX = x + cellWidth / 2;
             const circleY = y + cellHeight / 2;
             const circleRadius = Math.min(cellWidth, cellHeight) * 0.25;
 
-            // Draw circle with shadow
             ctx.shadowColor = 'rgba(0,0,0,0.4)';
             ctx.shadowBlur = 8;
             ctx.shadowOffsetY = 3;
@@ -298,7 +372,6 @@ export const BongoCanvas: React.FC<{
             ctx.fillStyle = circleColor;
             ctx.fill();
 
-            // Add subtle inner glow
             ctx.shadowColor = 'rgba(255,255,255,0.3)';
             ctx.shadowBlur = 10;
             ctx.shadowOffsetY = 0;
@@ -319,14 +392,12 @@ export const BongoCanvas: React.FC<{
         ctx.shadowOffsetY = 5;
 
         ctx.fillStyle = '#FFFFFF';
-        // Dynamic font size based on cell height
         const fontSize = Math.max(16, cellHeight * 0.32);
         ctx.font = `800 ${fontSize}px "Montserrat", Arial, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(cell.value.toString(), x + cellWidth / 2, y + cellHeight / 2);
 
-        // Subtle top highlight
         ctx.shadowColor = 'rgba(255,255,255,0.35)';
         ctx.shadowBlur = 3;
         ctx.shadowOffsetY = -2;
@@ -336,25 +407,21 @@ export const BongoCanvas: React.FC<{
 
         // If revealed, show prize with overlay
         if (isRevealed) {
-            // Semi-transparent dark overlay
             ctx.save();
             drawRoundedRectPath(ctx, x, y, cellWidth, cellHeight, radius);
             ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
             ctx.fill();
             ctx.restore();
 
-            // Draw prize emoji with animation
             const prizeIndex = cell.value - 1;
             if (prizeIndex >= 0 && prizeIndex < PRIZE_IMAGES.length) {
                 const emoji = PRIZE_IMAGES[prizeIndex];
 
-                // Pulsing effect
                 const pulseScale = 1 + Math.sin(time * 0.01) * 0.05;
                 ctx.save();
                 ctx.translate(x + cellWidth/2, y + cellHeight/2);
                 ctx.scale(pulseScale, pulseScale);
 
-                // Draw emoji
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = `bold ${cellHeight * 0.4}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
                 ctx.textAlign = 'center';
@@ -362,14 +429,8 @@ export const BongoCanvas: React.FC<{
                 ctx.fillText(emoji, 0, 0);
 
                 ctx.restore();
-
-                // Draw "WIN!" text
-                // ctx.fillStyle = '#FFD700';
-                // ctx.font = `bold ${cellHeight * 0.15}px Arial, sans-serif`;
-                // ctx.fillText('WIN!', x + cellWidth/2, y + cellHeight - 20);
             }
 
-            // Shimmering border effect for revealed cells
             ctx.save();
             const shimmerSpeed = 0.008;
             const shimmerThickness = 3;
@@ -411,11 +472,9 @@ export const BongoCanvas: React.FC<{
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            // Clear canvas with background
             ctx.fillStyle = '#191425';
             ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-            // Get current cell dimensions
             const {
                 cellWidth,
                 cellHeight,
@@ -425,7 +484,6 @@ export const BongoCanvas: React.FC<{
                 titleHeight
             } = getCellDimensions();
 
-            // Draw all cells
             cells.sort((a, b) => a.id - b.id).forEach(cell => {
                 drawCell(ctx, cell, cellWidth, cellHeight, horizontalPadding,
                     verticalPadding, cellPadding, titleHeight, time);
@@ -483,7 +541,7 @@ export const BongoCanvas: React.FC<{
         }
     }, [cells, getCellDimensions]);
 
-    const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -503,33 +561,38 @@ export const BongoCanvas: React.FC<{
             titleHeight
         } = getCellDimensions();
 
-        // Find the clicked cell
         for (const cell of cells) {
             const cellX = horizontalPadding + (cell.x * (cellWidth + cellPadding));
             const cellY = verticalPadding + titleHeight + (cell.y * (cellHeight + cellPadding));
 
             if (x >= cellX && x <= cellX + cellWidth &&
                 y >= cellY && y <= cellY + cellHeight) {
-                // Only proceed if cell is not already revealed
                 if (!cell.isRevealed) {
-                    onCellClick(cell.id);
-                    OnSetSelectedCell(cell.id)
+                    handleCellClick(cell.id);
                 }
-                return; // Exit after finding the clicked cell
+                return;
             }
         }
-    }, [getCellDimensions, cells, onCellClick, OnSetSelectedCell]);
+    }, [getCellDimensions, cells, handleCellClick]);
+
     return (
         <div ref={containerRef} className="bingo-canvas-container" style={{ width: '100%', height: '100%' }}>
             <h1 className="title">Pick A Box</h1>
 
             <canvas
                 ref={canvasRef}
-                width={800}
+                width={600}
                 height={800}
                 className="bingo-canvas"
                 onMouseMove={handleMouseMove}
-                onClick={handleClick}
+                onClick={handleCanvasClick}
+            />
+
+            <PrizeModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                cell={selectedCellDetails}
+                cellColors={modalColors}
             />
         </div>
     );
