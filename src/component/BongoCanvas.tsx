@@ -129,12 +129,17 @@ export const BongoCanvas: React.FC<{
 
     // Store loaded prize images
     const [loadedImages, setLoadedImages] = useState<Record<number, HTMLImageElement>>({});
+    const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
+    const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
+    const [isScrolling, setIsScrolling] = useState(false);
+    const TOUCH_SCROLL_THRESHOLD = 10; // pixels movement to consider as scroll
+    const TOUCH_LONG_PRESS_DURATION = 500; // ms for long press
 
     const GRID_COLS = 4;
     const GRID_ROWS = 3;
-    // const HORIZONTAL_PADDING = 30;
-    // const VERTICAL_PADDING = 30;
-    // const CELL_PADDING = 10;
+    const HORIZONTAL_PADDING = 30;
+    const VERTICAL_PADDING = 30;
+    const CELL_PADDING = 10;
 
     // Load prize images
     useEffect(() => {
@@ -358,15 +363,9 @@ export const BongoCanvas: React.FC<{
     }, []);
 
     // Calculate cell dimensions - REMOVED TITLE_HEIGHT
-    // Calculate cell dimensions - IMPROVED FOR CONSISTENT ACROSS DEVICES
     const getCellDimensions = useCallback(() => {
-        // Use percentage-based padding instead of fixed pixels
-        const horizontalPadding = canvasSize.width * 0.05; // 5% of canvas width
-        const verticalPadding = canvasSize.height * 0.05; // 5% of canvas height
-        const cellPadding = Math.min(canvasSize.width, canvasSize.height) * 0.015; // 1.5% of smallest dimension
-
-        const availableWidth = canvasSize.width - (horizontalPadding * 2) - (cellPadding * (GRID_COLS - 1));
-        const availableHeight = canvasSize.height - (verticalPadding * 2) - (cellPadding * (GRID_ROWS - 1));
+        const availableWidth = canvasSize.width - (HORIZONTAL_PADDING * 2) - (CELL_PADDING * (GRID_COLS - 1));
+        const availableHeight = canvasSize.height - (VERTICAL_PADDING * 2) - (CELL_PADDING * (GRID_ROWS - 1));
 
         const cellWidthFromWidth = availableWidth / GRID_COLS;
         const cellHeightFromHeight = availableHeight / GRID_ROWS;
@@ -377,30 +376,25 @@ export const BongoCanvas: React.FC<{
         const actualCellWidth = cellSize;
         const actualCellHeight = cellSize;
 
-        const totalGridWidth = (actualCellWidth * GRID_COLS) + (cellPadding * (GRID_COLS - 1));
-        const totalGridHeight = (actualCellHeight * GRID_ROWS) + (cellPadding * (GRID_ROWS - 1));
+        const totalGridWidth = (actualCellWidth * GRID_COLS) + (CELL_PADDING * (GRID_COLS - 1));
+        const totalGridHeight = (actualCellHeight * GRID_ROWS) + (CELL_PADDING * (GRID_ROWS - 1));
 
-        // Center the grid
-        const startX = (canvasSize.width - totalGridWidth) / 2;
-        const startY = (canvasSize.height - totalGridHeight) / 2;
+        // Center the grid - REMOVED TITLE_HEIGHT
+        const startX = HORIZONTAL_PADDING + (availableWidth - totalGridWidth) / 2;
+        const startY = VERTICAL_PADDING + (availableHeight - totalGridHeight) / 2;
 
         return {
             cellWidth: actualCellWidth,
             cellHeight: actualCellHeight,
             startX,
             startY,
-            cellPadding,
+            cellPadding: CELL_PADDING,
             totalGridWidth,
-            totalGridHeight,
-            // Store these for debugging
-            horizontalPadding,
-            verticalPadding
+            totalGridHeight
         };
     }, [canvasSize]);
 
     // Helper function to get cell at coordinates
-    // Helper function to get cell at coordinates - IMPROVED ACCURACY FOR TOUCH DEVICES
-    // Helper function to get cell at coordinates - FIXED FOR ASUS
     const getCellAtCoordinates = useCallback((x: number, y: number) => {
         const {
             cellWidth,
@@ -418,52 +412,25 @@ export const BongoCanvas: React.FC<{
         const totalGridWidth = (cellWidth * GRID_COLS) + (cellPadding * (GRID_COLS - 1));
         const totalGridHeight = (cellHeight * GRID_ROWS) + (cellPadding * (GRID_ROWS - 1));
 
-        // Add a larger margin for all devices to make tapping easier
-        const margin = 15;
-        if (adjustedX < -margin || adjustedX > totalGridWidth + margin ||
-            adjustedY < -margin || adjustedY > totalGridHeight + margin) {
+        if (adjustedX < 0 || adjustedX >= totalGridWidth ||
+            adjustedY < 0 || adjustedY >= totalGridHeight) {
             return null;
         }
 
-        // Calculate which cell was clicked - use floor with bounds checking
-        let col = Math.floor(adjustedX / (cellWidth + cellPadding));
-        let row = Math.floor(adjustedY / (cellHeight + cellPadding));
+        // Calculate which cell was clicked
+        const col = Math.floor(adjustedX / (cellWidth + cellPadding));
+        const row = Math.floor(adjustedY / (cellHeight + cellPadding));
 
         // Ensure col and row are within bounds
-        col = Math.max(0, Math.min(col, GRID_COLS - 1));
-        row = Math.max(0, Math.min(row, GRID_ROWS - 1));
-
-        // Find cell at position with exact match
-        const cell = cells.find(c => c.x === col && c.y === row);
-
-        // If no exact match, try nearest cell (for edge cases)
-        if (!cell) {
-            // Calculate distances to all cells and find the closest one
-            let closestCell = null;
-            let minDistance = Infinity;
-
-            cells.forEach(c => {
-                const cellX = startX + (c.x * (cellWidth + cellPadding));
-                const cellY = startY + (c.y * (cellHeight + cellPadding));
-                const distance = Math.sqrt(
-                    Math.pow(x - (cellX + cellWidth/2), 2) +
-                    Math.pow(y - (cellY + cellHeight/2), 2)
-                );
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestCell = c;
-                }
-            });
-
-            // Only return closest cell if it's within a reasonable distance
-            if (minDistance < cellWidth * 0.8) {
-                return closestCell;
-            }
+        if (col >= GRID_COLS || row >= GRID_ROWS) {
+            return null;
         }
 
+        // Find cell at position
+        const cell = cells.find(c => c.x === col && c.y === row);
         return cell || null;
     }, [cells, getCellDimensions]);
+
     // Get cell by value (number displayed on box)
     const getCellByValue = useCallback((value: number) => {
         return cells.find(c => c.value === value);
@@ -508,9 +475,8 @@ export const BongoCanvas: React.FC<{
     //     };
     // }, []);
     // Get event coordinates helper function - IMPROVED FOR ALL DEVICES
-    // Get event coordinates helper function - IMPROVED FOR ALL DEVICES WITH PROPER TYPE NARROWING
-    // Get event coordinates helper function - ULTRA ACCURATE
-    const getEventCoordinates = useCallback((event: MouseEvent | TouchEvent, canvas: HTMLCanvasElement) => {
+    // Fixed getEventCoordinates function with proper TypeScript types
+    const getEventCoordinates = useCallback((event: MouseEvent | TouchEvent | Touch, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
 
         // Get the canvas buffer size
@@ -521,37 +487,43 @@ export const BongoCanvas: React.FC<{
         const cssWidth = rect.width;
         const cssHeight = rect.height;
 
-        // Calculate scale factors with high precision
+        // Calculate scale factors more precisely
         const scaleX = bufferWidth / cssWidth;
         const scaleY = bufferHeight / cssHeight;
 
-        let clientX, clientY;
+        let clientX: number, clientY: number;
 
-        if ('touches' in event) {
+        // Check if it's a TouchEvent
+        if (window.TouchEvent && event instanceof TouchEvent) {
             // Handle TouchEvent
             if (event.touches.length > 0) {
                 clientX = event.touches[0].clientX;
                 clientY = event.touches[0].clientY;
-            } else if (event.changedTouches?.length > 0) {
-                // For touchend events
-                clientX = event.changedTouches[0].clientX;
-                clientY = event.changedTouches[0].clientY;
             } else {
-                return { x: 0, y: 0 };
+                // Fallback if no touches
+                clientX = 0;
+                clientY = 0;
             }
-        } else {
+        }
+        // Check if it's a Touch object (from touchstart/touchend)
+        else if ('clientX' in event && 'clientY' in event) {
+            // Handle Touch object or MouseEvent
+            clientX = (event as Touch).clientX;
+            clientY = (event as Touch).clientY;
+        }
+        else {
             // Handle MouseEvent
-            clientX = event.clientX;
-            clientY = event.clientY;
+            clientX = (event as MouseEvent).clientX;
+            clientY = (event as MouseEvent).clientY;
         }
 
         // Calculate coordinates relative to canvas with precise scaling
         let x = (clientX - rect.left) * scaleX;
         let y = (clientY - rect.top) * scaleY;
 
-        // Clamp to valid range
-        x = Math.max(0, Math.min(x, bufferWidth));
-        y = Math.max(0, Math.min(y, bufferHeight));
+        // Add small epsilon to handle floating point errors
+        x = Math.max(0, Math.min(x, bufferWidth - 0.1));
+        y = Math.max(0, Math.min(y, bufferHeight - 0.1));
 
         return { x, y };
     }, []);
@@ -1007,17 +979,54 @@ export const BongoCanvas: React.FC<{
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const {x, y} = getEventCoordinates(event, canvas);
+        const touch = event.touches[0];
+        const { x, y } = getEventCoordinates(touch, canvas);
         const cell = getCellAtCoordinates(x, y);
+
+        // Record touch start for gesture detection
+        setTouchStartTime(Date.now());
+        setTouchStartPos({ x, y });
+        setIsScrolling(false);
 
         if (cell && !cell.isRevealed) {
             hoveredCellRef.current = cell.id;
-            // Also set cursor style for visual feedback
-            if (canvas.style.cursor !== 'pointer') {
+
+            // Visual feedback for touch on small screens
+            canvas.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                canvas.style.transform = 'scale(1)';
+            }, 100);
+        }
+    }, [getEventCoordinates, getCellAtCoordinates]);
+
+    const handleCanvasTouchMove = useCallback((event: TouchEvent) => {
+        event.preventDefault();
+        if (event.touches.length === 0 || !touchStartPos) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const touch = event.touches[0];
+        const { x, y } = getEventCoordinates(touch, canvas);
+
+        // Check if this is a scrolling gesture
+        const dx = Math.abs(x - touchStartPos.x);
+        const dy = Math.abs(y - touchStartPos.y);
+
+        if (dx > TOUCH_SCROLL_THRESHOLD || dy > TOUCH_SCROLL_THRESHOLD) {
+            setIsScrolling(true);
+
+            // Clear hover state when scrolling
+            const cell = getCellAtCoordinates(x, y);
+            if (!cell || cell.isRevealed) {
+                hoveredCellRef.current = null;
+                canvas.style.cursor = 'default';
+            } else {
+                hoveredCellRef.current = cell.id;
                 canvas.style.cursor = 'pointer';
             }
         }
-    }, [getEventCoordinates, getCellAtCoordinates]);
+    }, [getEventCoordinates, getCellAtCoordinates, touchStartPos]);
 
     const handleCanvasTouchEnd = useCallback((event: TouchEvent) => {
         event.preventDefault();
@@ -1026,19 +1035,57 @@ export const BongoCanvas: React.FC<{
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // const touch = event.changedTouches[0];
-        const {x, y} = getEventCoordinates(event, canvas);
+        const touch = event.changedTouches[0];
+        const { x, y } = getEventCoordinates(touch, canvas);
         const cell = getCellAtCoordinates(x, y);
 
-        if (cell && !cell.isRevealed) {
-            handleCellClick(cell.id);
+        const touchDuration = touchStartTime ? Date.now() - touchStartTime : 0;
+
+        // Only trigger click if it wasn't a scrolling gesture
+        if (!isScrolling && cell && !cell.isRevealed) {
+            // Check for long press on mobile
+            if (touchDuration > TOUCH_LONG_PRESS_DURATION) {
+                // Long press - maybe show preview or alternative action
+                showToast(`Long press on box ${cell.value}`, 'success');
+                handleCellClick(cell.id);
+            } else {
+                // Normal tap
+                handleCellClick(cell.id);
+
+                // Add haptic feedback if available (iOS)
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(10); // Short vibration for feedback
+                }
+            }
         }
 
+        // Reset touch states
+        setTouchStartTime(null);
+        setTouchStartPos(null);
+        setIsScrolling(false);
         hoveredCellRef.current = null;
-        canvas.style.cursor = 'default';
-    }, [getEventCoordinates, getCellAtCoordinates, handleCellClick]);
 
-    // Setup event listeners
+        // Reset canvas transform
+        canvas.style.transform = 'scale(1)';
+    }, [getEventCoordinates, getCellAtCoordinates, handleCellClick, isScrolling, touchStartTime, showToast]);
+
+
+    const handleCanvasTouchCancel = useCallback((event: TouchEvent) => {
+        event.preventDefault();
+
+        // Reset all touch states
+        setTouchStartTime(null);
+        setTouchStartPos(null);
+        setIsScrolling(false);
+        hoveredCellRef.current = null;
+
+        const canvas = canvasRef.current;
+        if (canvas) {
+            canvas.style.cursor = 'default';
+            canvas.style.transform = 'scale(1)';
+        }
+    }, []);
+
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -1087,7 +1134,52 @@ export const BongoCanvas: React.FC<{
             }
         };
     }, []);
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
+        canvas.style.touchAction = 'none';
+        canvas.style.userSelect = 'none';
+
+        // Mobile-specific optimizations
+        // if (window.innerWidth <= 768) {
+        //     canvas.style.webkitTapHighlightColor = 'transparent';
+        //     canvas.style.webkitTouchCallout = 'none';
+        // }
+
+        canvas.addEventListener('mousemove', handleCanvasMouseMove);
+        canvas.addEventListener('click', handleCanvasClick);
+        canvas.addEventListener('touchstart', handleCanvasTouchStart);
+        canvas.addEventListener('touchmove', handleCanvasTouchMove);
+        canvas.addEventListener('touchend', handleCanvasTouchEnd);
+        canvas.addEventListener('touchcancel', handleCanvasTouchCancel);
+
+        const handleMouseOut = () => {
+            hoveredCellRef.current = null;
+            if (canvas) {
+                canvas.style.cursor = 'default';
+            }
+        };
+
+        canvas.addEventListener('mouseout', handleMouseOut);
+
+        return () => {
+            canvas.removeEventListener('mousemove', handleCanvasMouseMove);
+            canvas.removeEventListener('click', handleCanvasClick);
+            canvas.removeEventListener('touchstart', handleCanvasTouchStart);
+            canvas.removeEventListener('touchmove', handleCanvasTouchMove);
+            canvas.removeEventListener('touchend', handleCanvasTouchEnd);
+            canvas.removeEventListener('touchcancel', handleCanvasTouchCancel);
+            canvas.removeEventListener('mouseout', handleMouseOut);
+        };
+    }, [
+        handleCanvasMouseMove,
+        handleCanvasClick,
+        handleCanvasTouchStart,
+        handleCanvasTouchMove,
+        handleCanvasTouchEnd,
+        handleCanvasTouchCancel
+    ]);
     return (
         <div
             ref={containerRef}
@@ -1175,53 +1267,7 @@ export const BongoCanvas: React.FC<{
                     outline: none;
                 }
             `}</style>
-            <style>{`
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translate(-50%, 20px);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, 0);
-        }
-    }
-    
-    body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-    }
-    
-    .bingo-canvas-container {
-        margin: 0;
-        padding: 0;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-    }
-    
-    .bingo-canvas {
-        outline: none;
-        display: block;
-        width: 100%;
-        height: 100%;
-        /* Prevent any scaling that might affect coordinate calculations */
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-    }
-    
-    /* Specific fix for ASUS devices */
-    @media (hover: none) and (pointer: coarse) {
-        .bingo-canvas {
-            touch-action: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-    }
-`}</style>
+
         </div>
     );
 };
