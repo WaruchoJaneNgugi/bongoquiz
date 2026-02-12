@@ -34,6 +34,7 @@
     padding: 0;
     box-sizing: border-box;
 }
+
 body {
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg-dark);
@@ -59,36 +60,36 @@ body {
     }
 }
 
-/* Main Game Container */
-.bingo-game {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    max-width: 100%;
-    width: 100%;
-    height: 100vh; /* Full viewport height */
-    margin: 0;
-    padding: 20px;
-    position: relative;
-    z-index: 1;
-    overflow-y: auto;
-}
+/*!* Main Game Container *!*/
+/*.bingo-game {*/
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    align-items: center;*/
+/*    max-width: 100%;*/
+/*    width: 100%;*/
+/*    height: 100vh; !* Full viewport height *!*/
+/*    margin: 0;*/
+/*    padding: 20px;*/
+/*    position: relative;*/
+/*    z-index: 1;*/
+/*    overflow-y: auto;*/
+/*}*/
 
-/* Header Styling */
-.game-header {
-    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9), rgba(43, 26, 46, 0.9));
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border-glow);
-    border-radius: 25px;
-    padding: 30px 40px;
-    margin-bottom: 40px;
-    text-align: center;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6),
-    0 0 60px rgba(255, 107, 53, 0.15),
-    inset 0 0 20px rgba(157, 78, 221, 0.2);
-    position: relative;
-    overflow: hidden;
-}
+/*!* Header Styling *!*/
+/*.game-header {*/
+/*    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9), rgba(43, 26, 46, 0.9));*/
+/*    backdrop-filter: blur(20px);*/
+/*    border: 1px solid var(--border-glow);*/
+/*    border-radius: 25px;*/
+/*    padding: 30px 40px;*/
+/*    margin-bottom: 40px;*/
+/*    text-align: center;*/
+/*    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6),*/
+/*    0 0 60px rgba(255, 107, 53, 0.15),*/
+/*    inset 0 0 20px rgba(157, 78, 221, 0.2);*/
+/*    position: relative;*/
+/*    overflow: hidden;*/
+/*}*/
 
 .game-header::before {
     content: '';
@@ -278,18 +279,16 @@ body {
     }
 }
 
-.bingo-canvas-container {
-    width: 100%;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-}
-
-/*canvas {*/
-/*    touch-action: pan-y pinch-zoom;*/
+/*.bingo-canvas-container {*/
+/*    width: 100%;*/
+/*    flex: 1 1 auto;*/
+/*    min-height: 0;*/
+/*    display: flex;*/
+/*    justify-content: center;*/
+/*    align-items: center;*/
+/*    position: relative;*/
+/*    margin: 15px 0;*/
+/*    border:1px solid white;*/
 /*}*/
 
 .game-main {
@@ -300,21 +299,21 @@ body {
     /*padding: 20px;*/
 }
 
-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* This maintains aspect ratio while filling space */
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    outline: none;
-    touch-action: none;
-    pointer-events: auto;
-}
+/*canvas {*/
+/*    display: block;*/
+/*    width: 100%;*/
+/*    height: 100%;*/
+/*    object-fit: contain; !* This maintains aspect ratio while filling space *!*/
+/*    -webkit-tap-highlight-color: transparent;*/
+/*    -webkit-touch-callout: none;*/
+/*    -webkit-user-select: none;*/
+/*    -moz-user-select: none;*/
+/*    -ms-user-select: none;*/
+/*    user-select: none;*/
+/*    outline: none;*/
+/*    touch-action: none;*/
+/*    pointer-events: auto;*/
+/*}*/
 
 /* Win Animation Overlay */
 .win-animation-overlay {
@@ -602,5 +601,242 @@ canvas {
     color: var(--bg-dark);
 }
 
+/*new styles*/
+/* Main Game Container - adjust for different screen sizes */
+.bingo-game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    width: 100%;
+    height: 100vh; /* Full viewport height */
+    margin: 0;
+    padding: 15px; /* Reduced padding */
+    position: relative;
+    z-index: 1;
+    overflow-y: auto;
+}
+
+/* Header Styling - make it more compact */
+.game-header {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9), rgba(43, 26, 46, 0.9));
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glow);
+    border-radius: 20px; /* Slightly smaller radius */
+    padding: 15px 25px; /* Reduced padding */
+    margin-bottom: 15px; /* Reduced margin */
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(255, 107, 53, 0.15),
+    inset 0 0 20px rgba(157, 78, 221, 0.2);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.game-title {
+    text-align: center;
+    font-size: 2.2rem; /* Smaller title */
+    font-weight: 900;
+    background: linear-gradient(45deg, var(--neon-orange), var(--sun-yellow), var(--neon-purple), var(--accent-teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 5px; /* Reduced margin */
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(255, 107, 53, 0.5),
+    0 0 30px rgba(157, 78, 221, 0.4);
+    animation: titleGlow 3s ease-in-out infinite alternate;
+}
+
+.game-subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem; /* Smaller subtitle */
+    margin-bottom: 10px; /* Reduced margin */
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}
+
+/* Game Stats - more compact */
+.game-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.stat-box {
+    background: linear-gradient(135deg,
+    rgba(157, 78, 221, 0.15),
+    rgba(255, 107, 53, 0.15),
+    rgba(255, 209, 102, 0.1));
+    border: 1px solid var(--border-glow);
+    border-radius: 15px;
+    padding: 12px; /* Reduced padding */
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem; /* Smaller text */
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.8rem; /* Smaller stat values */
+    font-weight: 800;
+    color: var(--text-primary);
+    text-shadow: 0 0 15px var(--glow-orange);
+    position: relative;
+    z-index: 1;
+}
+
+/* Canvas Container - take remaining space */
+.bingo-canvas-container {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0; /* Critical for flex children */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Canvas - fill available space */
+canvas {
+    display: block;
+    width: auto;
+    height: 100%; /* Take full height of container */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    outline: none;
+    touch-action: none;
+    pointer-events: auto;
+}
+
+/* Responsive breakpoints for different screen sizes */
+@media (max-width: 1366px) {
+    .game-header {
+        padding: 12px 20px;
+        margin-bottom: 12px;
+    }
+
+    .game-title {
+        font-size: 2rem;
+    }
+
+    .game-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    .stat-box {
+        padding: 10px;
+    }
+
+    .stat-value {
+        font-size: 1.6rem;
+    }
+}
+
+@media (min-width: 1200px) and (max-width:1600px) {
+    canvas{
+        width:900px;
+        height: 1000px;
+    }
+}
 
 
+/* Specific fix for 15.6 inch screens (typical laptop) */
+@media (min-width: 1280px) and (max-width: 1440px) and (min-height: 700px) and (max-height: 900px) {
+    .bingo-game {
+        padding: 20px;
+    }
+
+    .game-header {
+        padding: 10px 15px;
+        margin-bottom: 10px;
+    }
+
+    .game-title {
+        font-size: 1.8rem;
+        margin-bottom: 3px;
+    }
+
+    .game-subtitle {
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+    }
+
+    .game-stats {
+        gap: 8px;
+    }
+
+    .stat-box {
+        padding: 8px;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+        margin-bottom: 3px;
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+    }
+
+    .bingo-canvas-container {
+        flex: 1 1 auto;
+    }
+}
+
+/* Small screens */
+@media (max-width: 768px) {
+    .game-header {
+        padding: 10px 15px;
+        margin-bottom: 10px;
+    }
+
+    .game-title {
+        font-size: 1.5rem;
+    }
+
+    .game-subtitle {
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+    }
+
+    .game-stats {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .stat-box {
+        padding: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.3rem;
+    }
+
+    .bingo-canvas-container {
+        flex: 1 1 auto;
+    }
+}
