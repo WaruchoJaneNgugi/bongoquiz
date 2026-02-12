@@ -65,7 +65,7 @@
     transform: scale(1.1);
 }
 
-..modal-header {
+.modal-header {
     position: absolute;
     bottom: 20px;
     left: 50%;

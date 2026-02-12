@@ -34,35 +34,19 @@
     padding: 0;
     box-sizing: border-box;
 }
-
 body {
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg-dark);
     color: var(--text-primary);
-    min-height: 100vh;
-    width:100%;
-    /*overflow-x: hidden;*/
-    /*display: flex;*/
-    /*align-items: center;*/
-    /*justify-content: center;*/
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent body scrolling */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-
-/* Animated background with mixed colors */
-/*body::before {*/
-/*    content: '';*/
-/*    position: fixed;*/
-/*    top: 0;*/
-/*    left: 0;*/
-/*    width: 100%;*/
-/*    height: 100%;*/
-/*    background:*/
-/*            radial-gradient(circle at 20% 50%, var(--dark-purple) 0%, transparent 50%),*/
-/*            radial-gradient(circle at 80% 20%, var(--neon-orange) 0%, transparent 50%),*/
-/*            radial-gradient(circle at 40% 80%, var(--sun-yellow) 0%, transparent 50%);*/
-/*    z-index: -1;*/
-/*    opacity: 0.2;*/
-/*    animation: backgroundPulse 10s ease-in-out infinite alternate;*/
-/*}*/
 
 @keyframes backgroundPulse {
     0% {
@@ -80,11 +64,14 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
+    max-width: 100%;
+    width: 100%;
+    height: 100vh; /* Full viewport height */
+    margin: 0;
     padding: 20px;
     position: relative;
     z-index: 1;
+    overflow-y: auto;
 }
 
 /* Header Styling */
@@ -96,10 +83,9 @@ body {
     padding: 30px 40px;
     margin-bottom: 40px;
     text-align: center;
-    box-shadow:
-            0 15px 35px rgba(0, 0, 0, 0.6),
-            0 0 60px rgba(255, 107, 53, 0.15),
-            inset 0 0 20px rgba(157, 78, 221, 0.2);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(255, 107, 53, 0.15),
+    inset 0 0 20px rgba(157, 78, 221, 0.2);
     position: relative;
     overflow: hidden;
 }
@@ -117,8 +103,12 @@ body {
 }
 
 @keyframes scanLine {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
 }
 
 .game-title {
@@ -132,23 +122,20 @@ body {
     margin-bottom: 15px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    text-shadow:
-            0 0 15px rgba(255, 107, 53, 0.5),
-            0 0 30px rgba(157, 78, 221, 0.4);
+    text-shadow: 0 0 15px rgba(255, 107, 53, 0.5),
+    0 0 30px rgba(157, 78, 221, 0.4);
     animation: titleGlow 3s ease-in-out infinite alternate;
 }
 
 @keyframes titleGlow {
     0% {
-        text-shadow:
-                0 0 15px rgba(255, 107, 53, 0.5),
-                0 0 30px rgba(157, 78, 221, 0.4);
+        text-shadow: 0 0 15px rgba(255, 107, 53, 0.5),
+        0 0 30px rgba(157, 78, 221, 0.4);
     }
     100% {
-        text-shadow:
-                0 0 20px rgba(255, 209, 102, 0.6),
-                0 0 40px rgba(157, 78, 221, 0.5),
-                0 0 60px rgba(0, 255, 255, 0.3);
+        text-shadow: 0 0 20px rgba(255, 209, 102, 0.6),
+        0 0 40px rgba(157, 78, 221, 0.5),
+        0 0 60px rgba(0, 255, 255, 0.3);
     }
 }
 
@@ -199,9 +186,8 @@ body {
 
 .stat-box:hover {
     transform: translateY(-8px) scale(1.03);
-    box-shadow:
-            0 15px 35px rgba(0, 0, 0, 0.4),
-            0 0 40px rgba(255, 107, 53, 0.3);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4),
+    0 0 40px rgba(255, 107, 53, 0.3);
     border-color: var(--sun-yellow);
 }
 
@@ -291,18 +277,20 @@ body {
         text-shadow: 0 0 25px #00ff00, 0 0 40px rgba(0, 255, 0, 0.6);
     }
 }
+
 .bingo-canvas-container {
     width: 100%;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    /*touch-action: none; !* Prevents scrolling *!*/
+    position: relative;
 }
 
-canvas {
-    touch-action: pan-y pinch-zoom; /* Allows pinch zoom but not double-tap zoom */
-}
+/*canvas {*/
+/*    touch-action: pan-y pinch-zoom;*/
+/*}*/
 
 .game-main {
     /*flex: 1;*/
@@ -312,17 +300,11 @@ canvas {
     /*padding: 20px;*/
 }
 
-/*.bingo-canvas {*/
-/*    !*display: block;*!*/
-/*    width: 100%;*/
-/*    border-radius: 12px;*/
-/*    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);*/
-/*    !*border-radius: 27px;*!*/
-/*}*/
 canvas {
+    display: block;
     width: 100%;
-    /*height: auto;*/
-    /*display: block;*/
+    height: 100%;
+    object-fit: contain; /* This maintains aspect ratio while filling space */
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -330,8 +312,8 @@ canvas {
     -ms-user-select: none;
     user-select: none;
     outline: none;
-    touch-action: none; /* Prevents scrolling on touch */
-    pointer-events: auto; /* Ensures clicks are captured */
+    touch-action: none;
+    pointer-events: auto;
 }
 
 /* Win Animation Overlay */
@@ -368,9 +350,13 @@ canvas {
 /* Responsive Design */
 @media (max-width: 768px) {
     canvas {
-        max-width: 100%;
+        width: 100%;
+        max-width: 650px;
+        min-width: 320px;
         max-height: 90vh;
+        height: 100%;
     }
+
     .game-title {
         font-size: 2.4rem;
         text-align: center;
@@ -399,11 +385,6 @@ canvas {
         min-width: 200px;
     }
 
-    .bingo-canvas-container {
-        /*min-height: 400px;*/
-
-        /*margin: 25px 0;*/
-    }
 
     .instructions {
         padding: 20px;

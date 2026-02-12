@@ -74,11 +74,11 @@ export const BongoCanvas: React.FC<{
     const hoveredCellRef = useRef<number | null>(null);
     const toastTimeoutRef = useRef<ReturnType<typeof setTimeout>>(3);
     const cellDimensionsRef = useRef({
-        cellWidth: 350,
-        cellHeight: 250,
+        cellWidth: 500,
+        cellHeight: 500,
         startX: 0,
         startY: 0,
-        cellPadding: 25
+        cellPadding: 15
     });
 
     // Constants
@@ -187,54 +187,32 @@ export const BongoCanvas: React.FC<{
         setIsModalOpen(false);
         setTimeout(() => setSelectedCellDetails(null), 300);
     }, []);
-
-    // Responsive canvas sizing - PRESERVE 1200x1200 buffer size
     useEffect(() => {
         const updateCanvasSize = () => {
             if (canvasRef.current) {
                 const canvas = canvasRef.current;
+                const container = canvas.parentElement;
 
-                // Get container dimensions
-                const canvasWidth = canvas.width;
-                const canvasHeight = canvas.height;
+                if (!container) return;
 
-                // Calculate canvas display size (maintain aspect ratio)
-                const aspectRatio = CANVAS_WIDTH;
-                let displayWidth = canvasWidth;
-                let displayHeight = canvasWidth;
-
-                if (displayHeight > canvasHeight) {
-                    displayHeight = canvasHeight;
-                    displayWidth = canvasHeight * aspectRatio;
-                }
-
-                // Add some padding
-                displayWidth = Math.min(displayWidth, canvasWidth - 40);
-                displayHeight = Math.min(displayHeight, canvasHeight - 40);
-
-                // Ensure minimum display size
-                displayWidth = Math.max(displayWidth, 300);
-                displayHeight = Math.max(displayHeight, 300);
-
-                // Set canvas CSS size
-                canvas.style.width = `${displayWidth}px`;
-                canvas.style.height = `${displayHeight}px`;
+                // REMOVE ALL THIS DISPLAY SIZE CALCULATION CODE
+                // Let CSS handle the display sizing completely
 
                 // PRESERVE the 1200x1200 buffer size - DON'T change this
                 canvas.width = CANVAS_WIDTH;
                 canvas.height = CANVAS_HEIGHT;
 
                 // Calculate cell dimensions based on the fixed 1200x1200 canvas
-                const availableWidth = CANVAS_WIDTH - (CELL_PADDING * 4);
-                const availableHeight = CANVAS_HEIGHT - (CELL_PADDING * 4);
+                const availableWidth = CANVAS_WIDTH;
+                const availableHeight = CANVAS_HEIGHT;
 
                 const cellWidthFromWidth = (availableWidth - (CELL_PADDING * (GRID_COLS - 1))) / GRID_COLS;
                 const cellHeightFromHeight = (availableHeight - (CELL_PADDING * (GRID_ROWS - 1))) / GRID_ROWS;
 
                 // Use positive cell size
                 let cellSize = Math.min(
-                    Math.max(cellWidthFromWidth, 50),
-                    Math.max(cellHeightFromHeight, 50)
+                    Math.max(cellWidthFromWidth, 10),
+                    Math.max(cellHeightFromHeight, 10)
                 );
 
                 // Ensure cell size is reasonable for 1200x1200 canvas
@@ -254,7 +232,6 @@ export const BongoCanvas: React.FC<{
                     cellPadding: CELL_PADDING
                 };
 
-                // Scale context for display
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.imageSmoothingEnabled = true;
@@ -266,7 +243,7 @@ export const BongoCanvas: React.FC<{
         updateCanvasSize();
 
         const resizeObserver = new ResizeObserver(updateCanvasSize);
-        if (canvasRef.current) resizeObserver.observe(canvasRef.current);
+        if (canvasRef.current?.parentElement) resizeObserver.observe(canvasRef.current.parentElement);
         window.addEventListener('resize', updateCanvasSize);
 
         return () => {
@@ -274,6 +251,93 @@ export const BongoCanvas: React.FC<{
             resizeObserver.disconnect();
         };
     }, []);
+    // useEffect(() => {
+    //     const updateCanvasSize = () => {
+    //         if (canvasRef.current) {
+    //             const canvas = canvasRef.current;
+    //             const container = canvas.parentElement;
+    //
+    //             if (!container) return;
+    //
+    //             // Get container dimensions
+    //             const containerWidth = container.clientWidth;
+    //             const containerHeight = container.clientHeight;
+    //
+    //             // Calculate display size to fit within container while maintaining aspect ratio
+    //             let displayWidth, displayHeight;
+    //             const aspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT;
+    //
+    //             if (containerWidth / containerHeight > aspectRatio) {
+    //                 // Container is wider than canvas aspect ratio
+    //                 displayHeight = Math.min(containerHeight, window.innerHeight * 0.8);
+    //                 displayWidth = displayHeight * aspectRatio;
+    //             } else {
+    //                 // Container is taller than canvas aspect ratio
+    //                 displayWidth = Math.min(containerWidth, window.innerWidth * 0.9);
+    //                 displayHeight = displayWidth / aspectRatio;
+    //             }
+    //
+    //             // Ensure minimum display size
+    //             displayWidth = Math.max(displayWidth, 300);
+    //             displayHeight = Math.max(displayHeight, 300);
+    //
+    //             // // Set canvas CSS size
+    //             canvas.style.width = `${displayWidth}px`;
+    //             canvas.style.height = `${displayHeight}px`;
+    //
+    //             // PRESERVE the 1200x1200 buffer size - DON'T change this
+    //             canvas.width = CANVAS_WIDTH;
+    //             canvas.height = CANVAS_HEIGHT;
+    //
+    //             // Calculate cell dimensions based on the fixed 1200x1200 canvas
+    //             const availableWidth = CANVAS_WIDTH;
+    //             const availableHeight = CANVAS_HEIGHT;
+    //
+    //             const cellWidthFromWidth = (availableWidth - (CELL_PADDING * (GRID_COLS - 1))) / GRID_COLS;
+    //             const cellHeightFromHeight = (availableHeight - (CELL_PADDING * (GRID_ROWS - 1))) / GRID_ROWS;
+    //
+    //             // Use positive cell size
+    //             let cellSize = Math.min(
+    //                 Math.max(cellWidthFromWidth, 10),
+    //                 Math.max(cellHeightFromHeight, 10)
+    //             );
+    //
+    //             // Ensure cell size is reasonable for 1200x1200 canvas
+    //             cellSize = Math.max(cellSize, 150);
+    //
+    //             const totalGridWidth = (cellSize * GRID_COLS) + (CELL_PADDING * (GRID_COLS - 1));
+    //             const totalGridHeight = (cellSize * GRID_ROWS) + (CELL_PADDING * (GRID_ROWS - 1));
+    //
+    //             const startX = Math.max(0, (CANVAS_WIDTH - totalGridWidth) / 2);
+    //             const startY = Math.max(0, (CANVAS_HEIGHT - totalGridHeight) / 2);
+    //
+    //             cellDimensionsRef.current = {
+    //                 cellWidth: cellSize,
+    //                 cellHeight: cellSize,
+    //                 startX,
+    //                 startY,
+    //                 cellPadding: CELL_PADDING
+    //             };
+    //
+    //             const ctx = canvas.getContext('2d');
+    //             if (ctx) {
+    //                 ctx.imageSmoothingEnabled = true;
+    //                 ctx.imageSmoothingQuality = 'high';
+    //             }
+    //         }
+    //     };
+    //
+    //     updateCanvasSize();
+    //
+    //     const resizeObserver = new ResizeObserver(updateCanvasSize);
+    //     if (canvasRef.current?.parentElement) resizeObserver.observe(canvasRef.current.parentElement);
+    //     window.addEventListener('resize', updateCanvasSize);
+    //
+    //     return () => {
+    //         window.removeEventListener('resize', updateCanvasSize);
+    //         resizeObserver.disconnect();
+    //     };
+    // }, []);
 
     // Get cell at coordinates - Adjusted for 1200x1200 canvas
     const getCellAtCoordinates = useCallback((x: number, y: number) => {
@@ -402,7 +466,6 @@ export const BongoCanvas: React.FC<{
             canvas.removeEventListener('pointermove', handlePointerMove);
             canvas.removeEventListener('pointerup', handlePointerUp);
             canvas.removeEventListener('pointerleave', handlePointerLeave);
-            canvas.removeEventListener('pointerdown', canvas.setPointerCapture);
             canvas.removeEventListener('contextmenu', (e) => e.preventDefault());
         };
     }, [handlePointerMove, handlePointerUp, handlePointerLeave]);
@@ -706,7 +769,6 @@ export const BongoCanvas: React.FC<{
 
     return (
         <div
-            // ref={containerRef}
             className="bingo-canvas-container"
         >
             {toastMessage && (
@@ -733,12 +795,6 @@ export const BongoCanvas: React.FC<{
                 ref={canvasRef}
                 width={CANVAS_WIDTH}
                 height={CANVAS_HEIGHT}
-                // style={{
-                //     width:'100%',
-                //     touchAction: 'none',
-                //     userSelect: 'none',
-                //     WebkitTapHighlightColor: 'transparent'
-                // }}
             />
 
             <PrizeModal
@@ -747,25 +803,6 @@ export const BongoCanvas: React.FC<{
                 cell={selectedCellDetails}
                 cellColors={modalColors}
             />
-
-            {/*<style>{`*/}
-            {/*    @keyframes slideUp {*/}
-            {/*        from {*/}
-            {/*            opacity: 0;*/}
-            {/*            transform: translate(-50%, 20px);*/}
-            {/*        }*/}
-            {/*        to {*/}
-            {/*            opacity: 1;*/}
-            {/*            transform: translate(-50%, 0);*/}
-            {/*        }*/}
-            {/*    }*/}
-            {/*    .bingo-canvas {*/}
-            {/*        outline: none;*/}
-            {/*    }*/}
-            {/*    .bingo-canvas:focus {*/}
-            {/*        outline: none;*/}
-            {/*    }*/}
-            {/*`}</style>*/}
         </div>
     );
 };
