@@ -40,10 +40,11 @@ body {
     background: var(--bg-dark);
     color: var(--text-primary);
     min-height: 100vh;
-    overflow-x: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width:100%;
+    /*overflow-x: hidden;*/
+    /*display: flex;*/
+    /*align-items: center;*/
+    /*justify-content: center;*/
 }
 
 /* Animated background with mixed colors */
@@ -292,10 +293,15 @@ body {
 }
 .bingo-canvas-container {
     width: 100%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-direction: column;
+    /*touch-action: none; !* Prevents scrolling *!*/
+}
+
+canvas {
+    touch-action: pan-y pinch-zoom; /* Allows pinch zoom but not double-tap zoom */
 }
 
 .game-main {
@@ -313,8 +319,10 @@ body {
 /*    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);*/
 /*    !*border-radius: 27px;*!*/
 /*}*/
-canvas{
+canvas {
     width: 100%;
+    /*height: auto;*/
+    /*display: block;*/
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -322,101 +330,8 @@ canvas{
     -ms-user-select: none;
     user-select: none;
     outline: none;
-}
-/* Game Footer */
-.game-footer {
-    margin-top: 50px;
-    text-align: center;
-}
-
-.game-controls {
-    margin-bottom: 30px;
-}
-
-.game-button {
-    background: linear-gradient(135deg, var(--neon-orange), var(--sun-yellow), var(--neon-purple));
-    color: white;
-    border: none;
-    padding: 22px 55px;
-    font-size: 1.5rem;
-    font-weight: 800;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow:
-            0 12px 25px rgba(255, 107, 53, 0.5),
-            0 0 40px rgba(255, 209, 102, 0.3),
-            0 0 25px rgba(157, 78, 221, 0.2);
-    position: relative;
-    overflow: hidden;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    min-width: 250px;
-}
-
-.game-button.start {
-    background: linear-gradient(135deg, var(--neon-orange), var(--sun-yellow), var(--accent-teal));
-}
-
-.game-button.restart {
-    background: linear-gradient(135deg, var(--sun-yellow), var(--neon-purple), var(--bright-orange));
-}
-
-.game-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
-    transition: 0.5s;
-}
-
-.game-button:hover {
-    transform: translateY(-8px) scale(1.08);
-    box-shadow:
-            0 18px 35px rgba(255, 107, 53, 0.6),
-            0 0 60px rgba(255, 209, 102, 0.4),
-            0 0 35px rgba(157, 78, 221, 0.3);
-    letter-spacing: 2px;
-}
-
-.game-button:hover::before {
-    left: 100%;
-}
-
-.game-button:active {
-    transform: translateY(-4px) scale(1.04);
-}
-
-.instructions {
-    background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(43, 26, 46, 0.8));
-    backdrop-filter: blur(15px);
-    border: 1px solid var(--border-glow);
-    padding: 30px;
-    border-radius: 25px;
-    max-width: 650px;
-    margin: 0 auto;
-    box-shadow:
-            inset 0 0 20px rgba(255, 209, 102, 0.1),
-            0 10px 25px rgba(0, 0, 0, 0.3);
-}
-
-.instructions p {
-    color: var(--text-secondary);
-    margin: 18px 0;
-    font-size: 1.2rem;
-    line-height: 1.7;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-}
-
-.instructions strong {
-    color: var(--text-glow);
-    text-shadow: 0 0 15px var(--glow-yellow);
+    touch-action: none; /* Prevents scrolling on touch */
+    pointer-events: auto; /* Ensures clicks are captured */
 }
 
 /* Win Animation Overlay */
@@ -452,6 +367,10 @@ canvas{
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    canvas {
+        max-width: 100%;
+        max-height: 90vh;
+    }
     .game-title {
         font-size: 2.4rem;
         text-align: center;
@@ -481,7 +400,9 @@ canvas{
     }
 
     .bingo-canvas-container {
-        margin: 25px 0;
+        /*min-height: 400px;*/
+
+        /*margin: 25px 0;*/
     }
 
     .instructions {
